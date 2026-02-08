@@ -1,11 +1,50 @@
 "use client";
 
+import { useEffect } from "react";
 import { useLiff } from "@/hooks/useLiff";
 import { QRScanner } from "@/components/features/QRScanner";
 import { Smile } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function HomePage() {
   const { isInitialized, isLoggedIn, isLoading, profile, login } = useLiff();
+
+  // LINEログイン成功後、ユーザー情報をSupabaseに保存
+  useEffect(() => {
+    const saveUserProfile = async () => {
+      if (!profile) return;
+
+      try {
+        const { data, error } = await supabase.from("profiles").upsert(
+          {
+            id: profile.userId, // LINEのユーザーIDをそのまま主キーとして使用
+            line_user_id: profile.userId,
+            display_name: profile.displayName,
+            picture_url: profile.pictureUrl,
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "id", // idで重複チェック
+          }
+        );
+
+        if (error) {
+          console.error("❌ ユーザー情報の保存に失敗しました:", error);
+        } else {
+          console.log("✅ ユーザー情報をDBに保存しました:", {
+            userId: profile.userId,
+            displayName: profile.displayName,
+          });
+        }
+      } catch (err) {
+        console.error("❌ 予期しないエラーが発生しました:", err);
+      }
+    };
+
+    if (isLoggedIn && profile) {
+      saveUserProfile();
+    }
+  }, [isLoggedIn, profile]);
 
   // スタブデータ（後でSupabase等と連携）
   const stubTicketNo = "1234-5678";

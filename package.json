@@ -10,19 +10,22 @@
   },
   "dependencies": {
     "@line/liff": "^2.26.1",
+    "@supabase/supabase-js": "^2.95.3",
     "lucide-react": "^0.460.0",
     "next": "^16.1.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "@types/node": "^22",
+    "@types/node": "^22.19.10",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.2.4",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
