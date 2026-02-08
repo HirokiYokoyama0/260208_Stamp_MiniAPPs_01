@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run dev)"
+      "Bash(npm run dev)",
+      "Bash(npm outdated:*)",
+      "Bash(npm install:*)",
+      "Bash(powershell:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []
