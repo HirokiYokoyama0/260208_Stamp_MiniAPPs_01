@@ -9,24 +9,29 @@ import { supabase } from "@/lib/supabase";
 export default function HomePage() {
   const { isInitialized, isLoggedIn, isLoading, profile, login } = useLiff();
   const [stampCount, setStampCount] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
-  // Supabaseからスタンプ数を取得
-  const fetchStampCount = async (userId: string) => {
+  // Supabaseからスタンプ数と最終更新日時を取得
+  const fetchUserData = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("stamp_count")
+        .select("stamp_count, updated_at")
         .eq("id", userId)
         .single();
 
       if (error) {
-        console.error("❌ スタンプ数の取得に失敗しました:", error);
+        console.error("❌ ユーザーデータの取得に失敗しました:", error);
         return;
       }
 
       if (data) {
         setStampCount(data.stamp_count ?? 0);
-        console.log("✅ スタンプ数を取得しました:", data.stamp_count);
+        setLastUpdated(data.updated_at);
+        console.log("✅ ユーザーデータを取得しました:", {
+          stampCount: data.stamp_count,
+          updatedAt: data.updated_at,
+        });
       }
     } catch (err) {
       console.error("❌ 予期しないエラーが発生しました:", err);
@@ -59,8 +64,8 @@ export default function HomePage() {
             userId: profile.userId,
             displayName: profile.displayName,
           });
-          // 保存後、最新のスタンプ数を取得
-          await fetchStampCount(profile.userId);
+          // 保存後、最新のユーザーデータを取得
+          await fetchUserData(profile.userId);
         }
       } catch (err) {
         console.error("❌ 予期しないエラーが発生しました:", err);
@@ -71,6 +76,20 @@ export default function HomePage() {
       saveUserProfile();
     }
   }, [isLoggedIn, profile]);
+
+  // 日付フォーマット関数
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return "未登録";
+
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+
+    return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+  };
 
   // スタブデータ（固定値）
   const stubTicketNo = "1234-5678";
@@ -119,6 +138,9 @@ export default function HomePage() {
           <p className="text-2xl font-semibold text-gray-800">{stubName}</p>
           <p className="font-mono text-sm text-gray-600">
             診察券番号: {stubTicketNo}
+          </p>
+          <p className="text-xs text-gray-500">
+            最終アクセス: {formatDate(lastUpdated)}
           </p>
         </div>
       </section>
