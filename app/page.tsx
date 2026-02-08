@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLiff } from "@/hooks/useLiff";
 import { QRScanner } from "@/components/features/QRScanner";
 import { Smile } from "lucide-react";
@@ -8,6 +8,30 @@ import { supabase } from "@/lib/supabase";
 
 export default function HomePage() {
   const { isInitialized, isLoggedIn, isLoading, profile, login } = useLiff();
+  const [stampCount, setStampCount] = useState(0);
+
+  // Supabaseからスタンプ数を取得
+  const fetchStampCount = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("stamp_count")
+        .eq("id", userId)
+        .single();
+
+      if (error) {
+        console.error("❌ スタンプ数の取得に失敗しました:", error);
+        return;
+      }
+
+      if (data) {
+        setStampCount(data.stamp_count ?? 0);
+        console.log("✅ スタンプ数を取得しました:", data.stamp_count);
+      }
+    } catch (err) {
+      console.error("❌ 予期しないエラーが発生しました:", err);
+    }
+  };
 
   // LINEログイン成功後、ユーザー情報をSupabaseに保存
   useEffect(() => {
@@ -35,6 +59,8 @@ export default function HomePage() {
             userId: profile.userId,
             displayName: profile.displayName,
           });
+          // 保存後、最新のスタンプ数を取得
+          await fetchStampCount(profile.userId);
         }
       } catch (err) {
         console.error("❌ 予期しないエラーが発生しました:", err);
@@ -46,11 +72,10 @@ export default function HomePage() {
     }
   }, [isLoggedIn, profile]);
 
-  // スタブデータ（後でSupabase等と連携）
+  // スタブデータ（固定値）
   const stubTicketNo = "1234-5678";
   const stubName = profile?.displayName ?? "ゲスト";
   const stubDaysUntilNext = 45;
-  const stubStampCount = 3;
   const stubStampGoal = 10;
 
   if (!isInitialized || isLoading) {
@@ -138,19 +163,19 @@ export default function HomePage() {
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">通院スタンプ</span>
             <span className="font-semibold text-gray-800">
-              {stubStampCount} / {stubStampGoal}
+              {stampCount} / {stubStampGoal}
             </span>
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-gray-100">
             <div
               className="h-full rounded-full bg-gradient-to-r from-primary to-primary-dark transition-all"
               style={{
-                width: `${Math.min(100, (stubStampCount / stubStampGoal) * 100)}%`,
+                width: `${Math.min(100, (stampCount / stubStampGoal) * 100)}%`,
               }}
             />
           </div>
           <p className="text-xs text-gray-500">
-            あと{stubStampGoal - stubStampCount}回でごほうび交換可能です
+            あと{stubStampGoal - stampCount}回でごほうび交換可能です
           </p>
         </div>
       </section>

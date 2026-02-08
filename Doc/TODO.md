@@ -30,10 +30,18 @@
 - [x] .gitignore に `.claude` と `.env.local` を追加
 - [x] 依存関係の脆弱性チェック（0件確認）
 
+### Supabase連携（2026-02-08）
+- [x] Supabase接続設定
+- [x] profilesテーブル作成
+- [x] ユーザー情報の自動保存機能（UPSERT）
+- [x] スタンプ数のリアルタイム表示機能
+- [x] 接続テスト成功
+
 ### ドキュメント整備（2026-02-08）
 - [x] プロジェクト仕様書作成
 - [x] ファイル構成ドキュメント作成・更新
 - [x] TODO管理ファイル作成
+- [x] Supabaseセットアップガイド作成
 
 ---
 
@@ -46,14 +54,18 @@
 ## 未実装機能・今後の開発予定 📋
 
 ### Phase 1: バックエンド基盤構築 🔧
-- [ ] Supabaseプロジェクトセットアップ
-  - [ ] データベース設計
-  - [ ] テーブル作成（users, stamps, care_logs, rewards）
-  - [ ] Row Level Security (RLS) 設定
-  - [ ] Supabase Client統合
-- [ ] 認証連携
-  - [ ] LINE LIFF userId と Supabaseユーザーの紐付け
-  - [ ] ユーザー登録フロー実装
+- [x] Supabaseプロジェクトセットアップ
+  - [x] データベース設計（アプローチ1: シンプル設計）
+  - [x] テーブル作成（profiles テーブル）
+  - [x] Row Level Security (RLS) 設定
+  - [x] Supabase Client統合 (lib/supabase.ts)
+- [x] 認証連携
+  - [x] LINE LIFF userId と Supabaseユーザーの紐付け
+  - [x] ユーザー登録フロー実装（自動UPSERT）
+- [x] スタンプ数表示機能
+  - [x] Supabaseから stamp_count を取得
+  - [x] リアルタイム表示（useState使用）
+  - [x] ログイン時の自動データ同期
 
 ### Phase 2: スタンプ機能の完全実装 🎯
 - [ ] スタンプページ（`/stamp`）実装
@@ -325,3 +337,4 @@ LINE_CHANNEL_SECRET=your-line-channel-secret
 | 2026-02-08 | Phase 6（LINE Messaging API連携）を詳細化：即時レスポンス、予約配信・リマインド機能、Flex Message実装を追加 |
 | 2026-02-08 | Phase 7（運用側管理ダッシュボード）を新設：患者管理、スタンプ管理、統計・分析、通知管理等の7セクション追加 |
 | 2026-02-08 | 環境変数セクションを拡充：患者用・管理用の環境変数を分離、参考リソースにMessaging API関連を追加 |
+| 2026-02-08 | Phase 1完了マーク：Supabase連携、スタンプ数表示機能を完了済みタスクに追加 |
