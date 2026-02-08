@@ -10,13 +10,14 @@ export default function HomePage() {
   const { isInitialized, isLoggedIn, isLoading, profile, login } = useLiff();
   const [stampCount, setStampCount] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [ticketNumber, setTicketNumber] = useState<string | null>(null);
 
-  // Supabaseからスタンプ数と最終更新日時を取得
+  // Supabaseからユーザーデータを取得
   const fetchUserData = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("stamp_count, updated_at")
+        .select("stamp_count, updated_at, ticket_number")
         .eq("id", userId)
         .single();
 
@@ -28,9 +29,11 @@ export default function HomePage() {
       if (data) {
         setStampCount(data.stamp_count ?? 0);
         setLastUpdated(data.updated_at);
+        setTicketNumber(data.ticket_number);
         console.log("✅ ユーザーデータを取得しました:", {
           stampCount: data.stamp_count,
           updatedAt: data.updated_at,
+          ticketNumber: data.ticket_number,
         });
       }
     } catch (err) {
@@ -91,9 +94,9 @@ export default function HomePage() {
     return `${year}年${month}月${day}日 ${hours}:${minutes}`;
   };
 
-  // スタブデータ（固定値）
-  const stubTicketNo = "1234-5678";
-  const stubName = profile?.displayName ?? "ゲスト";
+  // 表示用データ
+  const displayName = profile?.displayName ?? "ゲスト";
+  const displayTicketNumber = ticketNumber ?? "未登録";
   const stubDaysUntilNext = 45;
   const stubStampGoal = 10;
 
@@ -135,9 +138,9 @@ export default function HomePage() {
           デジタル診察券
         </h2>
         <div className="space-y-2">
-          <p className="text-2xl font-semibold text-gray-800">{stubName}</p>
+          <p className="text-2xl font-semibold text-gray-800">{displayName}</p>
           <p className="font-mono text-sm text-gray-600">
-            診察券番号: {stubTicketNo}
+            診察券番号: {displayTicketNumber}
           </p>
           <p className="text-xs text-gray-500">
             最終アクセス: {formatDate(lastUpdated)}
