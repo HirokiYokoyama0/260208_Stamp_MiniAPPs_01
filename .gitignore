@@ -6,6 +6,8 @@
 
 # testing
 /coverage
+/test
+Doc/Test_Results.md
 
 # next.js
 /.next/
