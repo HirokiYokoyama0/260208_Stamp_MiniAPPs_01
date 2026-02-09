@@ -44,7 +44,7 @@ export default function RewardsPage() {
     if (!profile?.userId) return;
 
     const confirmed = window.confirm(
-      `「${rewardName}」と交換しますか？\n\nこの操作は取り消せません。`
+      `「${rewardName}」と交換しますか？\n\n✨ スタンプは交換後も減りません\n\nこの操作は取り消せません。`
     );
 
     if (!confirmed) return;
@@ -117,6 +117,9 @@ export default function RewardsPage() {
             </h1>
             <p className="mt-1 text-sm text-gray-600">
               貯まったスタンプで特典と交換できます
+            </p>
+            <p className="mt-1 text-xs text-primary-dark font-medium">
+              ✨ スタンプは交換後も減りません
             </p>
           </div>
         </div>

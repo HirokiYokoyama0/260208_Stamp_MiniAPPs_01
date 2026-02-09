@@ -8,7 +8,7 @@ import {
 
 /**
  * POST /api/rewards/exchange
- * 特典を交換（スタンプ消費型）
+ * 特典を交換（積み上げ式 - スタンプは減らない）
  */
 export async function POST(
   request: NextRequest
@@ -82,28 +82,8 @@ export async function POST(
       );
     }
 
-    // 4. スタンプを消費（減算）
-    const newStampCount = currentStampCount - reward.required_stamps;
-
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({
-        stamp_count: newStampCount,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", userId);
-
-    if (updateError) {
-      console.error("❌ スタンプ数更新エラー:", updateError);
-      return NextResponse.json(
-        {
-          success: false,
-          message: "スタンプ数の更新に失敗しました",
-          error: updateError.message,
-        },
-        { status: 500 }
-      );
-    }
+    // 4. 積み上げ式: スタンプは減らさない（条件を満たせば何度でも交換可能）
+    // profiles.stamp_count はそのまま維持
 
     // 5. 交換履歴を記録
     const { data: exchange, error: exchangeError } = await supabase
@@ -125,7 +105,7 @@ export async function POST(
     }
 
     console.log(
-      `✅ 特典交換成功: User ${userId}, Reward ${reward.name}, スタンプ ${currentStampCount} → ${newStampCount}`
+      `✅ 特典交換成功: User ${userId}, Reward ${reward.name}, スタンプ ${currentStampCount}個（積み上げ式）`
     );
 
     return NextResponse.json(
@@ -133,7 +113,7 @@ export async function POST(
         success: true,
         message: `${reward.name}と交換しました！`,
         exchange: exchange as RewardExchange,
-        newStampCount,
+        newStampCount: currentStampCount, // 積み上げ式なのでスタンプは減らない
       },
       { status: 200 }
     );
