@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLiff } from "@/hooks/useLiff";
 import { QRScanner } from "@/components/features/QRScanner";
+import { VersionInfo } from "@/components/layout/VersionInfo";
 import { Smile } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { addStamp, fetchStampCount } from "@/lib/stamps";
@@ -224,6 +225,9 @@ export default function HomePage() {
           </p>
         </div>
       </section>
+
+      {/* バージョン情報 */}
+      <VersionInfo />
     </div>
   );
 }
