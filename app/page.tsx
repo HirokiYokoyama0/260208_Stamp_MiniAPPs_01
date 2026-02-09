@@ -99,8 +99,8 @@ export default function HomePage() {
     return `${year}年${month}月${day}日 ${hours}:${minutes}`;
   };
 
-  // スタッフ暗証番号による手動スタンプ付与
-  const handleStaffSubmit = async (pin: string) => {
+  // スタッフ暗証番号による手動スタンプ数変更
+  const handleStaffSubmit = async (pin: string, newCount: number) => {
     if (!profile?.userId) {
       alert("ログインしてください");
       return;
@@ -114,26 +114,27 @@ export default function HomePage() {
         body: JSON.stringify({
           userId: profile.userId,
           staffPin: pin,
+          newStampCount: newCount,
         }),
       });
 
       const result = await response.json();
 
       if (result.success) {
-        setStampCount(result.stampCount || stampCount + 1);
-        console.log("✅ スタッフによりスタンプを付与しました:", result);
+        setStampCount(result.stampCount);
+        console.log("✅ スタッフによりスタンプ数を変更しました:", result);
         setShowStaffModal(false);
         alert(
-          `スタンプを付与しました！\n現在 ${result.stampCount} / ${stubStampGoal}個`
+          `スタンプ数を更新しました！\n現在 ${result.stampCount} / ${stubStampGoal}個`
         );
         // 最新データを再取得
         await fetchUserData(profile.userId);
       } else {
-        console.error("❌ スタンプ付与失敗:", result.error);
-        alert(result.message || "スタンプの登録に失敗しました");
+        console.error("❌ スタンプ数変更失敗:", result.error);
+        alert(result.message || "スタンプ数の更新に失敗しました");
       }
     } catch (error) {
-      console.error("❌ スタンプ登録エラー:", error);
+      console.error("❌ スタンプ数変更エラー:", error);
       alert("エラーが発生しました");
     } finally {
       setIsStaffLoading(false);
@@ -277,6 +278,7 @@ export default function HomePage() {
       <StaffPinModal
         isOpen={showStaffModal}
         onClose={() => setShowStaffModal(false)}
+        currentStampCount={stampCount}
         onSubmit={handleStaffSubmit}
         isLoading={isStaffLoading}
       />

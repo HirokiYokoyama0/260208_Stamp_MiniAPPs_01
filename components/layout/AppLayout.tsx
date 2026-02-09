@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   CreditCard,
   Stamp,
+  Gift,
   ClipboardCheck,
   Building2,
 } from "lucide-react";
@@ -13,6 +14,7 @@ import {
 const TABS = [
   { href: "/", label: "診察券", icon: CreditCard },
   { href: "/stamp", label: "スタンプ", icon: Stamp },
+  { href: "/rewards", label: "特典", icon: Gift },
   { href: "/care", label: "ケア記録", icon: ClipboardCheck },
   { href: "/info", label: "医院情報", icon: Building2 },
 ] as const;
@@ -41,7 +43,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* ボトムナビゲーション */}
       <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-100 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-        <div className="flex items-center justify-around px-2 py-2">
+        <div className="flex items-center justify-around px-1 py-2">
           {TABS.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
             return (
@@ -49,18 +51,18 @@ export function AppLayout({ children }: AppLayoutProps) {
                 key={href}
                 href={href}
                 onClick={() => setActiveTab(href)}
-                className={`flex flex-col items-center gap-1 px-4 py-2 transition-colors ${
+                className={`flex flex-1 flex-col items-center gap-1 px-2 py-2 transition-colors ${
                   isActive
                     ? "text-primary-dark"
                     : "text-gray-400 hover:text-gray-600"
                 }`}
               >
                 <Icon
-                  size={22}
+                  size={20}
                   strokeWidth={isActive ? 2.5 : 1.8}
                   className={isActive ? "text-primary" : ""}
                 />
-                <span className="text-xs font-medium">{label}</span>
+                <span className="text-[10px] font-medium leading-tight">{label}</span>
               </Link>
             );
           })}

@@ -5,26 +5,44 @@ import { AddStampResponse } from "@/types/stamp";
 interface ManualStampRequest {
   userId: string; // LINEユーザーID
   staffPin: string; // スタッフ暗証番号
+  newStampCount: number; // 新しいスタンプ数
 }
 
 /**
  * POST /api/stamps/manual
- * スタッフ手動スタンプ付与エンドポイント
+ * スタッフ手動スタンプ数変更エンドポイント
+ *
+ * 機能:
+ * - スタッフがユーザーのスタンプ数を任意の値に変更できる
+ * - 1日1回制限なし（何度でも変更可能）
+ * - 監査証跡としてstamp_historyに記録
  */
 export async function POST(
   request: NextRequest
 ): Promise<NextResponse<AddStampResponse>> {
   try {
     const body: ManualStampRequest = await request.json();
-    const { userId, staffPin } = body;
+    const { userId, staffPin, newStampCount } = body;
 
     // バリデーション
-    if (!userId || !staffPin) {
+    if (!userId || !staffPin || newStampCount === undefined) {
       return NextResponse.json(
         {
           success: false,
-          message: "ユーザーIDまたは暗証番号が不足しています",
+          message: "必要なパラメータが不足しています",
           error: "Missing required fields",
+        },
+        { status: 400 }
+      );
+    }
+
+    // スタンプ数のバリデーション
+    if (newStampCount < 0 || newStampCount > 999) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "スタンプ数は0～999の範囲で指定してください",
+          error: "Invalid stamp count",
         },
         { status: 400 }
       );
@@ -41,39 +59,6 @@ export async function POST(
           error: "Invalid PIN",
         },
         { status: 401 }
-      );
-    }
-
-    // 重複チェック: 同日の登録済みチェック（QRスキャンも含む）
-    const today = new Date().toISOString().split("T")[0];
-    const { data: existing, error: checkError } = await supabase
-      .from("stamp_history")
-      .select("id")
-      .eq("user_id", userId)
-      .gte("visit_date", `${today}T00:00:00`)
-      .lt("visit_date", `${today}T23:59:59`)
-      .maybeSingle();
-
-    if (checkError && checkError.code !== "PGRST116") {
-      console.error("重複チェックエラー:", checkError);
-      return NextResponse.json(
-        {
-          success: false,
-          message: "重複チェックに失敗しました",
-          error: checkError.message,
-        },
-        { status: 500 }
-      );
-    }
-
-    if (existing) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "本日すでにスタンプを取得済みです",
-          error: "Duplicate stamp",
-        },
-        { status: 400 }
       );
     }
 
@@ -97,62 +82,72 @@ export async function POST(
     }
 
     const currentStampCount = profileData?.stamp_count ?? 0;
-    const nextStampNumber = currentStampCount + 1;
 
-    // 手動付与用のQRコードID生成（MANUAL-YYYYMMDD-HHMMSS形式）
-    const now = new Date();
-    const manualQrCodeId = `MANUAL-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+    // スタンプ数が変更されていない場合
+    if (currentStampCount === newStampCount) {
+      return NextResponse.json(
+        {
+          success: true,
+          message: "スタンプ数は既に同じ値です",
+          stampCount: currentStampCount,
+        },
+        { status: 200 }
+      );
+    }
 
-    // stamp_historyに新規レコードを挿入
-    const { data: stampData, error: insertError } = await supabase
-      .from("stamp_history")
-      .insert({
-        user_id: userId,
-        visit_date: now.toISOString(),
-        stamp_number: nextStampNumber,
-        stamp_method: "manual_admin",
-        qr_code_id: manualQrCodeId,
-        notes: "スタッフ手動付与",
+    // profilesテーブルのstamp_countを直接更新
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({
+        stamp_count: newStampCount,
+        updated_at: new Date().toISOString(),
       })
-      .select()
-      .single();
+      .eq("id", userId);
 
-    if (insertError) {
-      console.error("スタンプ登録エラー:", insertError);
+    if (updateError) {
+      console.error("スタンプ数更新エラー:", updateError);
       return NextResponse.json(
         {
           success: false,
-          message: "スタンプの登録に失敗しました",
-          error: insertError.message,
+          message: "スタンプ数の更新に失敗しました",
+          error: updateError.message,
         },
         { status: 500 }
       );
     }
 
-    // トリガーでprofilesが自動更新されるため、更新後のstamp_countを取得
-    const { data: updatedProfile, error: updatedFetchError } = await supabase
-      .from("profiles")
-      .select("stamp_count")
-      .eq("id", userId)
-      .single();
+    // 監査証跡を記録（stamp_historyに変更履歴を保存）
+    const now = new Date();
+    const manualQrCodeId = `MANUAL-ADJUST-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
 
-    const finalStampCount = updatedProfile?.stamp_count ?? nextStampNumber;
+    const changeDescription =
+      newStampCount > currentStampCount
+        ? `スタッフ操作: +${newStampCount - currentStampCount}個 (${currentStampCount} → ${newStampCount})`
+        : `スタッフ操作: ${newStampCount - currentStampCount}個 (${currentStampCount} → ${newStampCount})`;
+
+    await supabase.from("stamp_history").insert({
+      user_id: userId,
+      visit_date: now.toISOString(),
+      stamp_number: newStampCount,
+      stamp_method: "manual_admin",
+      qr_code_id: manualQrCodeId,
+      notes: changeDescription,
+    });
 
     console.log(
-      `✅ スタッフ手動スタンプ登録成功: User ${userId}, Stamp #${nextStampNumber}, Total: ${finalStampCount}`
+      `✅ スタッフによるスタンプ数変更成功: User ${userId}, ${currentStampCount} → ${newStampCount}`
     );
 
     return NextResponse.json(
       {
         success: true,
-        message: "スタンプを手動で付与しました",
-        stampCount: finalStampCount,
-        stampNumber: nextStampNumber,
+        message: "スタンプ数を更新しました",
+        stampCount: newStampCount,
       },
-      { status: 201 }
+      { status: 200 }
     );
   } catch (error) {
-    console.error("手動スタンプ登録API エラー:", error);
+    console.error("手動スタンプ変更API エラー:", error);
     return NextResponse.json(
       {
         success: false,

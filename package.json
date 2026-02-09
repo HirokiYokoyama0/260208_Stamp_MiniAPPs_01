@@ -1,12 +1,14 @@
 {
   "name": "haburashika-liff-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/update-version.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "version:update": "node scripts/update-version.mjs"
   },
   "dependencies": {
     "@line/liff": "^2.26.1",
