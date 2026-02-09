@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useLiff } from "@/hooks/useLiff";
 import { QRScanner } from "@/components/features/QRScanner";
 import { VersionInfo } from "@/components/layout/VersionInfo";
+import { StaffPinModal } from "@/components/features/StaffPinModal";
 import { Smile } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { addStamp, fetchStampCount } from "@/lib/stamps";
@@ -13,6 +14,8 @@ export default function HomePage() {
   const [stampCount, setStampCount] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [ticketNumber, setTicketNumber] = useState<string | null>(null);
+  const [showStaffModal, setShowStaffModal] = useState(false);
+  const [isStaffLoading, setIsStaffLoading] = useState(false);
 
   // Supabaseからユーザーデータを取得
   const fetchUserData = async (userId: string) => {
@@ -94,6 +97,47 @@ export default function HomePage() {
     const minutes = date.getMinutes().toString().padStart(2, "0");
 
     return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+  };
+
+  // スタッフ暗証番号による手動スタンプ付与
+  const handleStaffSubmit = async (pin: string) => {
+    if (!profile?.userId) {
+      alert("ログインしてください");
+      return;
+    }
+
+    setIsStaffLoading(true);
+    try {
+      const response = await fetch("/api/stamps/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: profile.userId,
+          staffPin: pin,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setStampCount(result.stampCount || stampCount + 1);
+        console.log("✅ スタッフによりスタンプを付与しました:", result);
+        setShowStaffModal(false);
+        alert(
+          `スタンプを付与しました！\n現在 ${result.stampCount} / ${stubStampGoal}個`
+        );
+        // 最新データを再取得
+        await fetchUserData(profile.userId);
+      } else {
+        console.error("❌ スタンプ付与失敗:", result.error);
+        alert(result.message || "スタンプの登録に失敗しました");
+      }
+    } catch (error) {
+      console.error("❌ スタンプ登録エラー:", error);
+      alert("エラーが発生しました");
+    } finally {
+      setIsStaffLoading(false);
+    }
   };
 
   // 表示用データ
@@ -227,7 +271,15 @@ export default function HomePage() {
       </section>
 
       {/* バージョン情報 */}
-      <VersionInfo />
+      <VersionInfo onTripleTap={() => setShowStaffModal(true)} />
+
+      {/* スタッフ用暗証番号入力モーダル */}
+      <StaffPinModal
+        isOpen={showStaffModal}
+        onClose={() => setShowStaffModal(false)}
+        onSubmit={handleStaffSubmit}
+        isLoading={isStaffLoading}
+      />
     </div>
   );
 }
