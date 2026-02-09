@@ -18,6 +18,8 @@ export interface UseLiffReturn {
   isLoading: boolean;
   error: Error | null;
   profile: LiffProfile | null;
+  isFriend: boolean | null;
+  checkFriendship: () => Promise<void>;
   login: () => void;
   logout: () => void;
 }
@@ -28,6 +30,41 @@ export function useLiff(): UseLiffReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [profile, setProfile] = useState<LiffProfile | null>(null);
+  const [isFriend, setIsFriend] = useState<boolean | null>(null);
+
+  const checkFriendship = useCallback(async () => {
+    if (!liff.isLoggedIn()) {
+      setIsFriend(null);
+      return;
+    }
+
+    try {
+      const friendship = await liff.getFriendship();
+      setIsFriend(friendship.friendFlag);
+
+      // Supabaseに友だち登録状態を保存（キャッシュ）
+      if (profile?.userId) {
+        try {
+          const { createClient } = await import("@supabase/supabase-js");
+          const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
+
+          await supabase
+            .from("profiles")
+            .update({ is_line_friend: friendship.friendFlag })
+            .eq("id", profile.userId);
+        } catch (dbError) {
+          console.warn("Supabaseへの友だち状態保存に失敗しました:", dbError);
+          // エラーでも処理は続行（キャッシュなので失敗しても問題なし）
+        }
+      }
+    } catch (err) {
+      console.error("友だち状態の取得に失敗しました:", err);
+      setIsFriend(null);
+    }
+  }, [profile]);
 
   const initLiff = useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -50,6 +87,9 @@ export function useLiff(): UseLiffReturn {
           pictureUrl: profileData.pictureUrl,
           statusMessage: profileData.statusMessage,
         });
+
+        // 友だち状態をチェック
+        await checkFriendship();
       } else {
         setIsLoggedIn(false);
       }
@@ -59,7 +99,7 @@ export function useLiff(): UseLiffReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [checkFriendship]);
 
   useEffect(() => {
     initLiff();
@@ -83,6 +123,8 @@ export function useLiff(): UseLiffReturn {
     isLoading,
     error,
     profile,
+    isFriend,
+    checkFriendship,
     login,
     logout,
   };

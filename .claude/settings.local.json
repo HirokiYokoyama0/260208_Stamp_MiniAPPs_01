@@ -8,7 +8,11 @@
       "Bash(timeout:*)",
       "Bash(npx tsx:*)",
       "Bash(cat:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Supabase連携とユーザー情報保存機能を実装\n\n主な変更:\n- Next.js 15.1.0 → 16.1.6 にアップデート (CVE-2025-66478 脆弱性対応)\n- React 19.0.0 → 19.2.4 にアップデート\n- @supabase/supabase-js を追加\n- Supabaseクライアント設定 (lib/supabase.ts)\n- ユーザー情報の自動保存機能 (app/page.tsx)\n- profilesテーブル作成SQL (supabase/001_create_profiles_table.sql)\n- 接続テストスクリプト (test/supabase-connection.ts, test/check-schema.ts)\n- ドキュメント整備 (TODO.md, Supabase_Setup.md等)\n- .gitignoreに .claude と .env.local を追加\n\nテーブル設計: アプローチ1 (シンプル設計、id を TEXT 型)\n\n🤖 Generated with Claude Code\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

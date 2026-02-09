@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,6 +10,8 @@ import {
   ClipboardCheck,
   Building2,
 } from "lucide-react";
+import { useLiff } from "@/hooks/useLiff";
+import FriendshipPromptModal from "@/components/features/FriendshipPromptModal";
 
 const TABS = [
   { href: "/", label: "診察券", icon: CreditCard },
@@ -26,6 +28,44 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState(pathname);
+  const { isLoggedIn, isLoading, isFriend } = useLiff();
+  const [showFriendshipModal, setShowFriendshipModal] = useState(false);
+  const [hasShownModal, setHasShownModal] = useState(false);
+
+  // 初回起動時に友だち登録を促進
+  useEffect(() => {
+    // すでにモーダルを表示済み、またはローディング中はスキップ
+    if (hasShownModal || isLoading) return;
+
+    // ログイン済みで、友だち登録がfalseの場合にモーダル表示
+    if (isLoggedIn && isFriend === false) {
+      // LocalStorageで「今日すでに表示したか」をチェック（1日1回まで）
+      const today = new Date().toISOString().split("T")[0];
+      const lastShown = localStorage.getItem("friendshipPromptLastShown");
+
+      if (lastShown !== today) {
+        // 少し遅延させてから表示（UX改善）
+        const timer = setTimeout(() => {
+          setShowFriendshipModal(true);
+          setHasShownModal(true);
+          localStorage.setItem("friendshipPromptLastShown", today);
+        }, 2000);
+
+        return () => clearTimeout(timer);
+      } else {
+        setHasShownModal(true);
+      }
+    }
+  }, [isLoggedIn, isLoading, isFriend, hasShownModal]);
+
+  const handleCloseFriendshipModal = () => {
+    setShowFriendshipModal(false);
+  };
+
+  const handleConfirmFriendship = () => {
+    setShowFriendshipModal(false);
+    // 公式アカウントページへのリダイレクトはモーダル内で処理
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -40,6 +80,13 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* メインコンテンツ */}
       <main className="flex-1 overflow-auto pb-20">{children}</main>
+
+      {/* 友だち登録促進モーダル */}
+      <FriendshipPromptModal
+        isOpen={showFriendshipModal}
+        onClose={handleCloseFriendshipModal}
+        onConfirm={handleConfirmFriendship}
+      />
 
       {/* ボトムナビゲーション */}
       <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-100 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
