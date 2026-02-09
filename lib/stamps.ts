@@ -6,6 +6,31 @@ import {
 } from "@/types/stamp";
 
 /**
+ * ユーザーのスタンプ数を取得（profilesテーブルから）
+ * @param userId LINEユーザーID
+ * @returns スタンプ数
+ */
+export const fetchStampCount = async (userId: string): Promise<number> => {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("stamp_count")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.error("❌ スタンプ数の取得に失敗しました:", error);
+      return 0;
+    }
+
+    return data?.stamp_count ?? 0;
+  } catch (err) {
+    console.error("❌ 予期しないエラー:", err);
+    return 0;
+  }
+};
+
+/**
  * ユーザーのスタンプ履歴を取得
  * @param userId LINEユーザーID
  * @returns スタンプ履歴の配列（新しい順）

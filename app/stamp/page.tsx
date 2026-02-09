@@ -5,6 +5,7 @@ import { useLiff } from "@/hooks/useLiff";
 import { QRScanner } from "@/components/features/QRScanner";
 import { CheckCircle2, Trophy } from "lucide-react";
 import {
+  fetchStampCount,
   fetchStampHistory,
   addStamp,
   formatStampDate,
@@ -21,16 +22,19 @@ export default function StampPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
 
-  // スタンプ履歴を取得
+  // スタンプ履歴とカウント数を取得
   const fetchHistory = async () => {
     if (!profile?.userId) return;
 
     setIsLoading(true);
     try {
+      // スタンプ数は profiles.stamp_count から取得（Single Source of Truth）
+      const count = await fetchStampCount(profile.userId);
+      setStampCount(count);
+
+      // 履歴は stamp_history から取得
       const history = await fetchStampHistory(profile.userId);
       setStampHistory(history);
-      // スタンプ数は履歴の件数から計算
-      setStampCount(history.length);
     } catch (error) {
       console.error("❌ スタンプ履歴の取得エラー:", error);
     } finally {

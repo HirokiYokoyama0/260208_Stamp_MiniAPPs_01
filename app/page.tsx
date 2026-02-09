@@ -5,7 +5,7 @@ import { useLiff } from "@/hooks/useLiff";
 import { QRScanner } from "@/components/features/QRScanner";
 import { Smile } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addStamp } from "@/lib/stamps";
+import { addStamp, fetchStampCount } from "@/lib/stamps";
 
 export default function HomePage() {
   const { isInitialized, isLoggedIn, isLoading, profile, login } = useLiff();
