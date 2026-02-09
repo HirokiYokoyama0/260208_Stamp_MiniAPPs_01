@@ -86,9 +86,14 @@ export default function StampPage() {
     <div className="space-y-6 px-4 py-6">
       {/* スタンプカウンターセクション */}
       <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-gray-400">
-          通院スタンプ
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-medium uppercase tracking-wider text-gray-400">
+            現在のスタンプ数
+          </h2>
+          <p className="text-xs text-gray-500">
+            訪問回数: {stampHistory.length}回
+          </p>
+        </div>
         <div className="mt-4 flex items-center justify-center">
           <div className="text-center">
             <p className="text-5xl font-bold text-primary">{stampCount}</p>
@@ -109,7 +114,7 @@ export default function StampPage() {
               ごほうび交換可能です！
             </span>
           ) : (
-            `あと${progress.remaining}回でごほうび交換可能です`
+            `あと${progress.remaining}個でごほうび交換可能です`
           )}
         </p>
       </section>
@@ -140,24 +145,30 @@ export default function StampPage() {
           </div>
         ) : (
           <ul className="space-y-3">
-            {stampHistory.map((record) => (
-              <li
-                key={record.id}
-                className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/30 p-3 transition-colors hover:bg-gray-50"
-              >
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <CheckCircle2 className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-800">
-                    {record.stamp_number}回目の来院
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {formatStampDate(record.visit_date)}
-                  </p>
-                </div>
-              </li>
-            ))}
+            {stampHistory.map((record, index) => {
+              const visitNumber = stampHistory.length - index; // 訪問回数（最新が1番目）
+              return (
+                <li
+                  key={record.id}
+                  className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/30 p-3 transition-colors hover:bg-gray-50"
+                >
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-800">
+                      {visitNumber}回目の来院
+                      {record.stamp_method === 'manual_admin' && (
+                        <span className="ml-2 text-xs text-gray-500">(スタッフ編集)</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {formatStampDate(record.visit_date)} • スタンプ {record.stamp_number}個
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

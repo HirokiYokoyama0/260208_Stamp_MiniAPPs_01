@@ -45,9 +45,9 @@ CREATE INDEX IF NOT EXISTS idx_stamp_history_user_id
 CREATE INDEX IF NOT EXISTS idx_stamp_history_visit_date
   ON stamp_history(visit_date);
 
--- ユーザーID + 来院日時の複合インデックス（重複チェック用）
+-- ユーザーID + 来院日時の複合インデックス（ユーザー別履歴検索の最適化）
 CREATE INDEX IF NOT EXISTS idx_stamp_history_user_date
-  ON stamp_history(user_id, DATE(visit_date));
+  ON stamp_history(user_id, visit_date);
 
 -- QRコードID での検索（重複登録防止）
 CREATE INDEX IF NOT EXISTS idx_stamp_history_qr_code_id
@@ -59,6 +59,10 @@ CREATE INDEX IF NOT EXISTS idx_stamp_history_qr_code_id
 -- ============================================
 
 ALTER TABLE stamp_history ENABLE ROW LEVEL SECURITY;
+
+-- 既存のポリシーを削除（再実行可能にするため）
+DROP POLICY IF EXISTS "allow_public_read" ON stamp_history;
+DROP POLICY IF EXISTS "allow_public_insert" ON stamp_history;
 
 -- 全員が読み取り可能
 CREATE POLICY "allow_public_read"
@@ -98,6 +102,9 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- 既存のトリガーを削除（再実行可能にするため）
+DROP TRIGGER IF EXISTS trigger_update_profile_stamp_count ON stamp_history;
 
 -- トリガー作成
 CREATE TRIGGER trigger_update_profile_stamp_count
