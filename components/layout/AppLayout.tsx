@@ -37,6 +37,9 @@ export function AppLayout({ children }: AppLayoutProps) {
     // すでにモーダルを表示済み、またはローディング中はスキップ
     if (hasShownModal || isLoading) return;
 
+    // isFriendがnullの場合（まだ確認中）はスキップ
+    if (isFriend === null) return;
+
     // ログイン済みで、友だち登録がfalseの場合にモーダル表示
     if (isLoggedIn && isFriend === false) {
       // LocalStorageで「今日すでに表示したか」をチェック（1日1回まで）
@@ -55,6 +58,9 @@ export function AppLayout({ children }: AppLayoutProps) {
       } else {
         setHasShownModal(true);
       }
+    } else if (isLoggedIn && isFriend === true) {
+      // 友だち登録済みの場合はフラグを立てる
+      setHasShownModal(true);
     }
   }, [isLoggedIn, isLoading, isFriend, hasShownModal]);
 

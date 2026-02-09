@@ -32,6 +32,7 @@ export function useLiff(): UseLiffReturn {
   const [profile, setProfile] = useState<LiffProfile | null>(null);
   const [isFriend, setIsFriend] = useState<boolean | null>(null);
 
+  // 友だち状態チェック関数（依存関係なし）
   const checkFriendship = useCallback(async () => {
     if (!liff.isLoggedIn()) {
       setIsFriend(null);
@@ -43,67 +44,81 @@ export function useLiff(): UseLiffReturn {
       setIsFriend(friendship.friendFlag);
 
       // Supabaseに友だち登録状態を保存（キャッシュ）
-      if (profile?.userId) {
-        try {
-          const { createClient } = await import("@supabase/supabase-js");
-          const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-          );
+      // profileDataを取得し直す
+      try {
+        const profileData = await liff.getProfile();
+        const { createClient } = await import("@supabase/supabase-js");
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
 
-          await supabase
-            .from("profiles")
-            .update({ is_line_friend: friendship.friendFlag })
-            .eq("id", profile.userId);
-        } catch (dbError) {
-          console.warn("Supabaseへの友だち状態保存に失敗しました:", dbError);
-          // エラーでも処理は続行（キャッシュなので失敗しても問題なし）
-        }
+        await supabase
+          .from("profiles")
+          .update({ is_line_friend: friendship.friendFlag })
+          .eq("id", profileData.userId);
+      } catch (dbError) {
+        console.warn("Supabaseへの友だち状態保存に失敗しました:", dbError);
+        // エラーでも処理は続行（キャッシュなので失敗しても問題なし）
       }
     } catch (err) {
       console.error("友だち状態の取得に失敗しました:", err);
       setIsFriend(null);
     }
-  }, [profile]);
+  }, []); // 依存関係を空にする
 
-  const initLiff = useCallback(async () => {
-    if (typeof window === "undefined") return;
-    if (!LIFF_ID) {
-      setError(new Error("NEXT_PUBLIC_LIFF_ID is not set"));
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      await liff.init({ liffId: LIFF_ID });
-      setIsInitialized(true);
-
-      if (liff.isLoggedIn()) {
-        setIsLoggedIn(true);
-        const profileData = await liff.getProfile();
-        setProfile({
-          userId: profileData.userId,
-          displayName: profileData.displayName ?? "",
-          pictureUrl: profileData.pictureUrl,
-          statusMessage: profileData.statusMessage,
-        });
-
-        // 友だち状態をチェック
-        await checkFriendship();
-      } else {
-        setIsLoggedIn(false);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error("LIFF init failed"));
-      setIsInitialized(false);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [checkFriendship]);
-
+  // LIFF初期化（一度だけ実行）
   useEffect(() => {
+    let mounted = true;
+
+    const initLiff = async () => {
+      if (typeof window === "undefined") return;
+      if (!LIFF_ID) {
+        setError(new Error("NEXT_PUBLIC_LIFF_ID is not set"));
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        if (!mounted) return;
+
+        setIsInitialized(true);
+
+        if (liff.isLoggedIn()) {
+          setIsLoggedIn(true);
+          const profileData = await liff.getProfile();
+          if (!mounted) return;
+
+          setProfile({
+            userId: profileData.userId,
+            displayName: profileData.displayName ?? "",
+            pictureUrl: profileData.pictureUrl,
+            statusMessage: profileData.statusMessage,
+          });
+
+          // 友だち状態をチェック
+          await checkFriendship();
+        } else {
+          setIsLoggedIn(false);
+        }
+      } catch (err) {
+        if (!mounted) return;
+        setError(err instanceof Error ? err : new Error("LIFF init failed"));
+        setIsInitialized(false);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
     initLiff();
-  }, [initLiff]);
+
+    return () => {
+      mounted = false;
+    };
+  }, []); // 依存関係を空にして一度だけ実行
 
   const login = useCallback(() => {
     if (!liff.isLoggedIn()) {
