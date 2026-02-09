@@ -5,6 +5,7 @@ import { useLiff } from "@/hooks/useLiff";
 import { QRScanner } from "@/components/features/QRScanner";
 import { Smile } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { addStamp } from "@/lib/stamps";
 
 export default function HomePage() {
   const { isInitialized, isLoggedIn, isLoading, profile, login } = useLiff();
@@ -169,9 +170,28 @@ export default function HomePage() {
       {/* 来院スタンプボタン */}
       <section>
         <QRScanner
-          onScan={(value) => {
-            console.log("QR scanned:", value);
-            // TODO: バックエンドに来院登録APIを叩く
+          onScan={async (qrValue) => {
+            if (!profile?.userId) {
+              alert("ログインしてください");
+              return;
+            }
+
+            try {
+              const result = await addStamp(profile.userId, qrValue);
+              if (result.success) {
+                setStampCount(result.stampCount || stampCount + 1);
+                console.log("✅ スタンプを付与しました:", result);
+                alert(`スタンプを取得しました！\n現在 ${result.stampCount} / ${stubStampGoal}個`);
+                // 最新データを再取得
+                await fetchUserData(profile.userId);
+              } else {
+                console.error("❌ スタンプ付与失敗:", result.error);
+                alert(result.message || "スタンプの登録に失敗しました");
+              }
+            } catch (error) {
+              console.error("❌ スタンプ登録エラー:", error);
+              alert("エラーが発生しました");
+            }
           }}
           onError={(err) => {
             console.error("QR scan error:", err);
