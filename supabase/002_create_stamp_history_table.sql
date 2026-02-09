@@ -83,7 +83,7 @@ BEGIN
   UPDATE profiles
   SET
     stamp_count = (
-      SELECT COUNT(*)
+      SELECT COALESCE(MAX(stamp_number), 0)
       FROM stamp_history
       WHERE user_id = NEW.user_id
     ),
