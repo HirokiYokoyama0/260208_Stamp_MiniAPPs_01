@@ -13,6 +13,7 @@ import {
 import { useLiff } from "@/hooks/useLiff";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import FriendshipPromptModal from "@/components/features/FriendshipPromptModal";
+import KidsSlotButton from "@/components/shared/KidsSlotButton";
 
 const TABS = [
   { href: "/", label: "診察券", icon: CreditCard },
@@ -95,6 +96,9 @@ export function AppLayout({ children }: AppLayoutProps) {
           onClose={handleCloseFriendshipModal}
           onConfirm={handleConfirmFriendship}
         />
+
+        {/* 子供用スロットボタン（ボトムナビ左上） */}
+        <KidsSlotButton />
 
         {/* ボトムナビゲーション */}
         <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-100 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
