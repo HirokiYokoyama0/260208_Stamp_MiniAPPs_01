@@ -8,7 +8,6 @@ export default function SettingsPage() {
 
   const handleModeChange = async (mode: 'adult' | 'kids') => {
     await setViewMode(mode);
-    alert(`${mode === 'adult' ? '大人用' : '子供用'}モードに切り替えました！`);
   };
 
   return (
