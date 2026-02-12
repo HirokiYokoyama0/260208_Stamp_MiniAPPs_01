@@ -14,7 +14,12 @@
       "Bash(git rm:*)",
       "Bash(git commit:*)",
       "Bash(node_modules/.bin/next build)",
-      "Bash(npx next build)"
+      "Bash(npx next build)",
+      "Bash(cmd.exe /c \"dir /s /b C:\\\\ngrok.exe\")",
+      "Bash(curl:*)",
+      "Bash(taskkill.exe:*)",
+      "Bash(npx ngrok:*)",
+      "Bash(git config:*)"
     ],
     "deny": [],
     "ask": []

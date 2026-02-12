@@ -143,3 +143,24 @@
 ### デプロイ注意
 - 推奨順: SQL（005）→ Vercelデプロイ
 - 逆順でもクラッシュしないが、設定ページのモード切替が機能しない
+
+---
+
+## 2026-02-12: テスト環境構築 / Doc整理
+
+### LIFF環境分離（本番 / テスト）
+- **本番用（Vercel）**: `NEXT_PUBLIC_LIFF_ID=2009075851-74EieWb4`
+- **テスト用（ngrok）**: `NEXT_PUBLIC_LIFF_ID=2009075851-kflzDQLr`
+- `.env.local` でコメントアウト切替で管理
+- テスト時は ngrok で `https://xxx.ngrok-free.dev` → `localhost:3000` にトンネル
+
+### ngrok導入
+- winget でインストール（v3.36.0）
+- authtoken 設定済み
+
+### Doc フォルダ整理
+- Implementation_Summary 3ファイル → 1ファイルに統合（追記型）
+- Feature_Specifications 4ファイル → 1ファイルに統合（スタンプ/特典/スタッフ操作/友だち登録）
+- 10ファイルを Doc/archive/ に移動
+- Doc直下: 15ファイル → 7ファイル + archive に集約
+- ファイル構成.md を新構成に更新
