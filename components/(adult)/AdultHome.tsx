@@ -108,6 +108,12 @@ export default function AdultHome() {
 
   // 予約ボタン：診察券番号をコピーしてからアポツールを開く
   const handleReservation = async () => {
+    console.log("🔍 [DEBUG] handleReservation called", {
+      displayTicketNumber,
+      "profile?.userId": profile?.userId,
+      profile: profile
+    });
+
     if (displayTicketNumber === "未登録") {
       alert("診察券番号が登録されていません。受付でご登録をお願いします。");
       return;
@@ -115,12 +121,24 @@ export default function AdultHome() {
 
     // 🆕 予約ボタンのクリック数をカウント
     if (profile?.userId) {
-      fetch(`/api/users/${profile.userId}/reservation-click`, {
+      const url = `/api/users/${profile.userId}/reservation-click`;
+      console.log("📊 [DEBUG] クリックカウントAPI呼び出し:", url);
+      fetch(url, {
         method: "POST",
-      }).catch((error) => {
-        // エラーでもユーザー体験は妨げない
-        console.error("⚠️ クリックカウントエラー:", error);
-      });
+      })
+        .then((res) => {
+          console.log("✅ [DEBUG] API レスポンス status:", res.status);
+          return res.json();
+        })
+        .then((data) => {
+          console.log("✅ [DEBUG] API レスポンスボディ:", data);
+        })
+        .catch((error) => {
+          // エラーでもユーザー体験は妨げない
+          console.error("⚠️ クリックカウントエラー:", error);
+        });
+    } else {
+      console.warn("⚠️ [DEBUG] profile.userId が存在しません", { profile });
     }
 
     try {
