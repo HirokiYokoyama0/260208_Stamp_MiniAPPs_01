@@ -99,6 +99,29 @@ export default function AdultHome() {
     return `${year}年${month}月${day}日 ${hours}:${minutes}`;
   };
 
+  // 予約ボタン：診察券番号をコピーしてからアポツールを開く
+  const handleReservation = async () => {
+    if (displayTicketNumber === "未登録") {
+      alert("診察券番号が登録されていません。受付でご登録をお願いします。");
+      return;
+    }
+
+    try {
+      // 診察券番号をクリップボードにコピー
+      await navigator.clipboard.writeText(displayTicketNumber);
+      console.log("✅ 診察券番号をコピーしました:", displayTicketNumber);
+
+      // コピー成功メッセージを表示
+      alert(`診察券番号をコピーしました！\n予約画面で貼り付けてください。\n\n診察券番号: ${displayTicketNumber}`);
+
+      // アポツールを開く
+      window.open("https://reservation.stransa.co.jp/5d62710843af2685c64352ed3eb9d043", "_blank");
+    } catch (error) {
+      console.error("❌ コピーに失敗しました:", error);
+      alert("コピーに失敗しました");
+    }
+  };
+
   // スタッフ暗証番号による手動スタンプ数変更
   const handleStaffSubmit = async (pin: string, newCount: number) => {
     if (!profile?.userId) {
@@ -184,7 +207,7 @@ export default function AdultHome() {
         <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-gray-400">
           デジタル診察券
         </h2>
-        <div className="space-y-2">
+        <div className="space-y-3">
           <p className="text-2xl font-semibold text-gray-800">{displayName}</p>
           <p className="font-mono text-sm text-gray-600">
             診察券番号: {displayTicketNumber}
@@ -192,6 +215,19 @@ export default function AdultHome() {
           <p className="text-xs text-gray-500">
             最終アクセス: {formatDate(lastUpdated)}
           </p>
+          {/* 予約ボタン */}
+          <button
+            type="button"
+            onClick={handleReservation}
+            className="w-full rounded-lg bg-primary px-4 py-3 font-semibold text-white transition-colors hover:bg-primary-dark"
+          >
+            予約する（アポツール）
+          </button>
+          {displayTicketNumber === "未登録" && (
+            <p className="text-xs text-amber-600">
+              ※ 予約には診察券番号の登録が必要です
+            </p>
+          )}
         </div>
       </section>
 

@@ -19,7 +19,17 @@
       "Bash(curl:*)",
       "Bash(taskkill.exe:*)",
       "Bash(npx ngrok:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(test:*)",
+      "Bash(npx tsc:*)",
+      "Bash(ngrok version)",
+      "Bash(ngrok config:*)",
+      "Bash(\"/c/Users/hirok/AppData/Local/Microsoft/WinGet/Packages/Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe/ngrok.exe\" version)",
+      "Bash(\"/c/Users/hirok/AppData/Local/Microsoft/WinGet/Packages/Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe/ngrok.exe\" config add-authtoken 39XxJuafo2BEy0GZEthIHm5ji1i_4MUAan2oyPThfmxPTUEd3)",
+      "Bash(\"/c/Users/hirok/AppData/Local/Microsoft/WinGet/Packages/Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe/ngrok.exe\" http 3000)",
+      "Bash(\"/c/Users/hirok/AppData/Local/Microsoft/WinGet/Packages/Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe/ngrok.exe\" update)",
+      "Bash(\"/c/Users/hirok/AppData/Local/Microsoft/WinGet/Packages/Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe/ngrok.exe\" http 3000 --log=stdout)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []

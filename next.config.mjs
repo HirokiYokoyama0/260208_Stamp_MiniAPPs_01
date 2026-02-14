@@ -47,6 +47,10 @@ function getBuildDate() {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // ngrok経由のアクセスを許可
+  allowedDevOrigins: [
+    "vibrioid-jolyn-polyphonically.ngrok-free.dev",
+  ],
   env: {
     // Gitタグから自動取得（環境変数で上書き可能）
     NEXT_PUBLIC_APP_VERSION:
