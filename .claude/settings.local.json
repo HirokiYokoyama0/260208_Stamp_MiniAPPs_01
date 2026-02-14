@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Read(//c/Users/hirok/Dropbox/F.ソースデータ/0A.LINE_LIFE_TSUKUBA/260209_ManagimentAPPs_01/Doc/**)",
-      "Read(//c/Users/hirok/Dropbox/F.ソースデータ/0A.LINE_LIFE_TSUKUBA/**)"
+      "Read(//c/Users/hirok/Dropbox/F.ソースデータ/0A.LINE_LIFE_TSUKUBA/**)",
+      "Bash(npm run dev)"
     ],
     "deny": [],
     "ask": []

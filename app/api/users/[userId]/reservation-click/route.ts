@@ -22,15 +22,16 @@ const supabase = createClient(
  * 予約ボタンのクリック数を+1する
  *
  * @param request - Requestオブジェクト
- * @param params - { userId: string }
+ * @param params - Promise<{ userId: string }> (Next.js 16)
  * @returns JSON { success: boolean, message: string, clicks?: number }
  */
 export async function POST(
   request: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId } = params;
+    // Next.js 16: params is a Promise
+    const { userId } = await params;
 
     // userIdの検証
     if (!userId || typeof userId !== "string") {
