@@ -201,7 +201,7 @@ export default function AdultHome() {
   }
 
   return (
-    <div className="space-y-6 px-4 py-6">
+    <div className="space-y-7 px-4 py-6">
       {/* デジタル診察券カード */}
       <section className="rounded-xl border border-gray-100 bg-gradient-to-br from-white to-gray-50/50 p-5 shadow-sm">
         <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-gray-400">
@@ -215,20 +215,24 @@ export default function AdultHome() {
           <p className="text-xs text-gray-500">
             最終アクセス: {formatDate(lastUpdated)}
           </p>
-          {/* 予約ボタン */}
-          <button
-            type="button"
-            onClick={handleReservation}
-            className="w-full rounded-lg bg-primary px-4 py-3 font-semibold text-white transition-colors hover:bg-primary-dark"
-          >
-            予約する（アポツール）
-          </button>
-          {displayTicketNumber === "未登録" && (
-            <p className="text-xs text-amber-600">
-              ※ 予約には診察券番号の登録が必要です
-            </p>
-          )}
         </div>
+      </section>
+
+      {/* 予約ボタン（独立セクション） */}
+      <section className="px-2">
+        <button
+          type="button"
+          onClick={handleReservation}
+          className="w-full rounded-lg bg-primary px-6 py-2.5 font-bold text-white shadow-md transition-all hover:bg-primary-dark hover:shadow-lg active:scale-[0.98]"
+        >
+          <span className="text-base">予約する</span>
+          <span className="text-xs">（アポツール）</span>
+        </button>
+        {displayTicketNumber === "未登録" && (
+          <p className="mt-3 text-center text-xs text-amber-600">
+            ※ 予約には診察券番号の登録が必要です
+          </p>
+        )}
       </section>
 
       {/* ハブラーシカのメッセージ */}
@@ -250,8 +254,9 @@ export default function AdultHome() {
       </section>
 
       {/* 来院スタンプボタン */}
-      <section>
+      <section className="px-2">
         <QRScanner
+          className="w-full bg-gray-100 text-gray-700 hover:bg-gray-200 py-2.5 text-xs font-medium"
           onScan={async (qrValue) => {
             if (!profile?.userId) {
               alert("ログインしてください");
