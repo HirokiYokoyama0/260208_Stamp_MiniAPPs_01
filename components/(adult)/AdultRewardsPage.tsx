@@ -2,19 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { useLiff } from "@/hooks/useLiff";
-import { Gift, CheckCircle2 } from "lucide-react";
-import { fetchRewards, exchangeReward, addRewardStatus } from "@/lib/rewards";
+import { Gift, CheckCircle2, Clock, Check, X } from "lucide-react";
+import {
+  fetchRewards,
+  exchangeReward,
+  addRewardStatus,
+  fetchUserExchangeHistory,
+} from "@/lib/rewards";
 import { fetchStampCount } from "@/lib/stamps";
-import { RewardWithStatus } from "@/types/reward";
+import { RewardWithStatus, RewardExchange } from "@/types/reward";
 
 export default function AdultRewardsPage() {
   const { isInitialized, isLoggedIn, isLoading, profile, login } = useLiff();
   const [rewards, setRewards] = useState<RewardWithStatus[]>([]);
   const [stampCount, setStampCount] = useState(0);
+  const [exchangeHistory, setExchangeHistory] = useState<RewardExchange[]>([]);
   const [isLoadingRewards, setIsLoadingRewards] = useState(true);
   const [isExchanging, setIsExchanging] = useState(false);
 
-  // 特典一覧とスタンプ数を取得
+  // 特典一覧とスタンプ数、交換履歴を取得
   useEffect(() => {
     const loadData = async () => {
       if (!isLoggedIn || !profile?.userId) return;
@@ -22,13 +28,15 @@ export default function AdultRewardsPage() {
       setIsLoadingRewards(true);
       try {
         // 並行して取得
-        const [rewardsData, count] = await Promise.all([
+        const [rewardsData, count, history] = await Promise.all([
           fetchRewards(),
           fetchStampCount(profile.userId),
+          fetchUserExchangeHistory(profile.userId),
         ]);
 
         setStampCount(count);
-        setRewards(addRewardStatus(rewardsData, count));
+        setExchangeHistory(history);
+        setRewards(addRewardStatus(rewardsData, count, history));
       } catch (error) {
         console.error("❌ データ取得エラー:", error);
       } finally {
@@ -44,7 +52,7 @@ export default function AdultRewardsPage() {
     if (!profile?.userId) return;
 
     const confirmed = window.confirm(
-      `「${rewardName}」と交換しますか？\n\n✨ スタンプは交換後も減りません\n\nこの操作は取り消せません。`
+      `「${rewardName}」と交換しますか？\n\n✨ スタンプは交換後も減りません\n\n受付でお受け取りください。`
     );
 
     if (!confirmed) return;
@@ -56,10 +64,15 @@ export default function AdultRewardsPage() {
       if (result.success) {
         alert(result.message);
 
-        // スタンプ数を更新し、特典の状態を再計算
-        const newCount = result.newStampCount ?? stampCount;
+        // 交換履歴を再取得して状態を更新
+        const [newHistory, newCount] = await Promise.all([
+          fetchUserExchangeHistory(profile.userId),
+          fetchStampCount(profile.userId),
+        ]);
+
+        setExchangeHistory(newHistory);
         setStampCount(newCount);
-        setRewards((prev) => addRewardStatus(prev, newCount));
+        setRewards((prev) => addRewardStatus(prev, newCount, newHistory));
       } else {
         alert(result.message);
       }
@@ -118,7 +131,7 @@ export default function AdultRewardsPage() {
             <p className="mt-1 text-sm text-gray-600">
               貯まったスタンプで特典と交換できます
             </p>
-            <p className="mt-1 text-xs text-primary-dark font-medium">
+            <p className="mt-1 text-xs font-medium text-primary-dark">
               ✨ スタンプは交換後も減りません
             </p>
           </div>
@@ -138,9 +151,7 @@ export default function AdultRewardsPage() {
         </h2>
 
         {isLoadingRewards ? (
-          <div className="text-center text-sm text-gray-400">
-            読み込み中...
-          </div>
+          <div className="text-center text-sm text-gray-400">読み込み中...</div>
         ) : rewards.length === 0 ? (
           <div className="rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
             <p className="text-sm text-gray-500">特典がありません</p>
@@ -151,7 +162,13 @@ export default function AdultRewardsPage() {
               <li
                 key={reward.id}
                 className={`rounded-xl border bg-white p-5 shadow-sm transition-all ${
-                  reward.canExchange
+                  reward.isCompleted
+                    ? "border-green-300 bg-green-50"
+                    : reward.isCancelled
+                    ? "border-red-300 bg-red-50"
+                    : reward.isPending
+                    ? "border-yellow-300 bg-yellow-50"
+                    : reward.canExchange
                     ? "border-primary/30 bg-primary/5"
                     : "border-gray-100"
                 }`}
@@ -160,12 +177,32 @@ export default function AdultRewardsPage() {
                   {/* アイコン */}
                   <div
                     className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${
-                      reward.canExchange
+                      reward.isCompleted
+                        ? "bg-green-200"
+                        : reward.isCancelled
+                        ? "bg-red-200"
+                        : reward.isPending
+                        ? "bg-yellow-200"
+                        : reward.canExchange
                         ? "bg-primary/20"
                         : "bg-gray-100"
                     }`}
                   >
-                    {reward.canExchange ? (
+                    {reward.isCompleted ? (
+                      <Check
+                        size={28}
+                        className="text-green-600"
+                        strokeWidth={2}
+                      />
+                    ) : reward.isCancelled ? (
+                      <X size={28} className="text-red-600" strokeWidth={2} />
+                    ) : reward.isPending ? (
+                      <Clock
+                        size={28}
+                        className="text-yellow-600"
+                        strokeWidth={1.5}
+                      />
+                    ) : reward.canExchange ? (
                       <CheckCircle2
                         size={28}
                         className="text-primary"
@@ -189,21 +226,55 @@ export default function AdultRewardsPage() {
                       {reward.description}
                     </p>
                     <div className="mt-3 flex items-center gap-2">
-                      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          reward.isCompleted
+                            ? "bg-green-100 text-green-700"
+                            : reward.isCancelled
+                            ? "bg-red-100 text-red-700"
+                            : reward.isPending
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-primary/10 text-primary"
+                        }`}
+                      >
                         {reward.required_stamps}個で交換
                       </span>
-                      {!reward.canExchange && (
-                        <span className="text-xs text-gray-500">
-                          あと{reward.remainingStamps}個
-                        </span>
-                      )}
+                      {!reward.canExchange &&
+                        !reward.isPending &&
+                        !reward.isCompleted &&
+                        !reward.isCancelled && (
+                          <span className="text-xs text-gray-500">
+                            あと{reward.remainingStamps}個
+                          </span>
+                        )}
                     </div>
                   </div>
                 </div>
 
                 {/* 交換ボタン */}
                 <div className="mt-4">
-                  {reward.canExchange ? (
+                  {reward.isCompleted ? (
+                    <button
+                      disabled
+                      className="w-full cursor-not-allowed rounded-lg bg-green-100 px-4 py-3 text-sm font-medium text-green-700"
+                    >
+                      交換完了
+                    </button>
+                  ) : reward.isCancelled ? (
+                    <button
+                      disabled
+                      className="w-full cursor-not-allowed rounded-lg bg-red-100 px-4 py-3 text-sm font-medium text-red-700"
+                    >
+                      キャンセル済み
+                    </button>
+                  ) : reward.isPending ? (
+                    <button
+                      disabled
+                      className="w-full cursor-not-allowed rounded-lg bg-yellow-100 px-4 py-3 text-sm font-medium text-yellow-700"
+                    >
+                      受付で確認中...
+                    </button>
+                  ) : reward.canExchange ? (
                     <button
                       onClick={() => handleExchange(reward.id, reward.name)}
                       disabled={isExchanging}

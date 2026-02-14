@@ -62,4 +62,8 @@ export interface GetRewardsResponse {
 export interface RewardWithStatus extends Reward {
   canExchange: boolean; // 交換可能かどうか
   remainingStamps: number; // あと何個必要か（マイナスなら交換可能）
+  isPending: boolean; // 申請中（pending）かどうか
+  isCompleted: boolean; // 交換完了（completed）かどうか
+  isCancelled: boolean; // キャンセル（cancelled）かどうか
+  latestExchange: RewardExchange | null; // 最新の交換履歴
 }

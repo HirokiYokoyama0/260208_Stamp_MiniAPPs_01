@@ -82,16 +82,36 @@ export async function POST(
       );
     }
 
-    // 4. 積み上げ式: スタンプは減らさない（条件を満たせば何度でも交換可能）
-    // profiles.stamp_count はそのまま維持
+    // 4. pending チェック（重複防止）
+    const { data: existingPending } = await supabase
+      .from("reward_exchanges")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("reward_id", rewardId)
+      .eq("status", "pending")
+      .maybeSingle();
 
-    // 5. 交換履歴を記録
+    if (existingPending) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "この特典は申請中です。受付でお受け取りください。",
+          error: "Already pending",
+        },
+        { status: 400 }
+      );
+    }
+
+    // 5. 【重要】積み上げ式: スタンプは絶対に減らさない！
+    // profiles.stamp_count の更新は一切行わない
+
+    // 6. 交換履歴を記録（pending）
     const { data: exchange, error: exchangeError } = await supabase
       .from("reward_exchanges")
       .insert({
         user_id: userId,
         reward_id: rewardId,
-        stamp_count_used: reward.required_stamps,
+        stamp_count_used: reward.required_stamps, // 記録用（減算はしない）
         status: "pending",
         notes: `特典交換: ${reward.name}`,
       })
@@ -100,20 +120,26 @@ export async function POST(
 
     if (exchangeError) {
       console.error("❌ 交換履歴登録エラー:", exchangeError);
-      // エラーだがスタンプは既に減っているので、エラーログだけ出力
-      // ロールバック処理は後で実装可能
+      return NextResponse.json(
+        {
+          success: false,
+          message: "交換履歴の登録に失敗しました",
+          error: exchangeError.message,
+        },
+        { status: 500 }
+      );
     }
 
     console.log(
-      `✅ 特典交換成功: User ${userId}, Reward ${reward.name}, スタンプ ${currentStampCount}個（積み上げ式）`
+      `✅ 特典交換申請: User ${userId}, Reward ${reward.name}, スタンプ ${currentStampCount}個（積み上げ式 - 減らさない）`
     );
 
     return NextResponse.json(
       {
         success: true,
-        message: `${reward.name}と交換しました！`,
+        message: `${reward.name}の交換を申請しました。受付でお受け取りください。`,
         exchange: exchange as RewardExchange,
-        newStampCount: currentStampCount, // 積み上げ式なのでスタンプは減らない
+        newStampCount: currentStampCount, // 積み上げ式 - スタンプは絶対に減らない
       },
       { status: 200 }
     );
