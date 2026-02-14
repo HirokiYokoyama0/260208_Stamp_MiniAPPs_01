@@ -113,6 +113,16 @@ export default function AdultHome() {
       return;
     }
 
+    // 🆕 予約ボタンのクリック数をカウント
+    if (profile?.userId) {
+      fetch(`/api/users/${profile.userId}/reservation-click`, {
+        method: "POST",
+      }).catch((error) => {
+        // エラーでもユーザー体験は妨げない
+        console.error("⚠️ クリックカウントエラー:", error);
+      });
+    }
+
     try {
       // 診察券番号をクリップボードにコピー
       await navigator.clipboard.writeText(displayTicketNumber);

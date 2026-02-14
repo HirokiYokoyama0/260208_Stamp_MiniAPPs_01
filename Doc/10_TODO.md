@@ -92,6 +92,24 @@
   - [x] 90_実装履歴.md に記録
   - [x] 10_TODO.md 更新
 
+### 予約ボタンクリック数トラッキング機能（2026-02-14）
+- [x] データベース設計・マイグレーション
+  - [x] profiles テーブルに reservation_button_clicks カラム追加（INTEGER, DEFAULT 0）
+  - [x] インデックス作成（idx_profiles_reservation_clicks）
+  - [x] PostgreSQL関数 increment_reservation_clicks() 作成
+- [x] API実装
+  - [x] POST /api/users/[userId]/reservation-click（クリック数+1）
+  - [x] エラーハンドリング実装（400/404/500）
+  - [x] supabase.rpc() でDB関数呼び出し
+- [x] フロントエンド実装
+  - [x] AdultHome.tsx の handleReservation() に7行追加
+  - [x] 非同期fetch実装（awaitなし）
+  - [x] エラー握りつぶし（.catch() + console.error）
+- [x] ドキュメント整備
+  - [x] 03_機能仕様書.md に6章追加
+  - [x] 90_実装履歴.md に記録
+  - [x] 10_TODO.md 更新
+
 ---
 
 ## 進行中タスク 🚧
@@ -445,3 +463,4 @@ LINE_CHANNEL_SECRET=your-line-channel-secret
 | 2026-02-14 | 予約システム連携：診察券番号コピー機能、アポツール予約ボタン実装、診察券タブUIデザイン改善（メイン/サブボタンの洗練、余白調整） |
 | 2026-02-14 | 開発環境整備：ngrok導入（v3.36.1）、lucide-react最新版アップデート（0.564.0）、TypeScript型定義エラー解消 |
 | 2026-02-14 | 次回メモ機能実装：データベース拡張（3カラム追加、自動更新トリガー）、API実装（GET/PUT）、患者側表示、管理画面作成、タイムゾーン問題修正 |
+| 2026-02-14 | 予約ボタンクリック数トラッキング機能実装：データベース拡張（reservation_button_clicks カラム追加、increment_reservation_clicks() 関数）、API実装（POST /api/users/[userId]/reservation-click）、フロントエンド実装（非同期fetch、エラー握りつぶし） |
