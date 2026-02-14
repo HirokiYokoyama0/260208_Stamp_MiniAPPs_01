@@ -8,6 +8,8 @@ import { StaffPinModal } from "@/components/shared/StaffPinModal";
 import { Smile } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { addStamp, fetchStampCount } from "@/lib/stamps";
+import { fetchUserMemo, formatVisitDate } from "@/lib/memo";
+import { UserMemo } from "@/types/memo";
 
 export default function AdultHome() {
   const { isInitialized, isLoggedIn, isLoading, profile, login } = useLiff();
@@ -16,6 +18,7 @@ export default function AdultHome() {
   const [ticketNumber, setTicketNumber] = useState<string | null>(null);
   const [showStaffModal, setShowStaffModal] = useState(false);
   const [isStaffLoading, setIsStaffLoading] = useState(false);
+  const [userMemo, setUserMemo] = useState<UserMemo | null>(null);
 
   // Supabaseからユーザーデータを取得
   const fetchUserData = async (userId: string) => {
@@ -41,6 +44,10 @@ export default function AdultHome() {
           ticketNumber: data.ticket_number,
         });
       }
+
+      // 次回メモを取得
+      const memo = await fetchUserMemo(userId);
+      setUserMemo(memo);
     } catch (err) {
       console.error("❌ 予期しないエラーが発生しました:", err);
     }
@@ -167,8 +174,40 @@ export default function AdultHome() {
   // 表示用データ
   const displayName = profile?.displayName ?? "ゲスト";
   const displayTicketNumber = ticketNumber ?? "未登録";
-  const stubDaysUntilNext = 45;
   const stubStampGoal = 10;
+
+  // 次回メモの表示内容を生成
+  const renderMemoMessage = () => {
+    const formattedDate = formatVisitDate(userMemo?.next_visit_date || null);
+    const customMemo = userMemo?.next_memo;
+
+    // 日付がある場合
+    if (formattedDate) {
+      return (
+        <>
+          次回の定期検診は
+          <span className="font-semibold text-primary-dark">
+            {formattedDate}
+          </span>
+          です。
+          {customMemo && (
+            <>
+              <br />
+              {customMemo}
+            </>
+          )}
+        </>
+      );
+    }
+
+    // 日付がなく、カスタムメモがある場合
+    if (customMemo) {
+      return <>{customMemo}</>;
+    }
+
+    // どちらもない場合（デフォルトメッセージ）
+    return <>次回のご来院をお待ちしております。毎日の歯磨き、頑張りましょう！</>;
+  };
 
   if (!isInitialized || isLoading) {
     return (
@@ -241,15 +280,7 @@ export default function AdultHome() {
           <Smile size={24} className="text-primary-dark" strokeWidth={1.5} />
         </div>
         <div className="flex-1 pt-1">
-          <p className="text-sm text-gray-700">
-            次回の定期検診まで
-            <span className="font-semibold text-primary-dark">
-              あと{stubDaysUntilNext}日
-            </span>
-            です。
-            <br />
-            お疲れ様です！今日も歯のケア、一緒に頑張りましょう。
-          </p>
+          <p className="text-sm text-gray-700">{renderMemoMessage()}</p>
         </div>
       </section>
 
