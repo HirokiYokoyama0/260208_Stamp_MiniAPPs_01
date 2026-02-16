@@ -289,7 +289,10 @@ export default function AdultHome() {
       <section className="px-2">
         <button
           type="button"
-          onClick={handleReservation}
+          onClick={() => {
+            console.log("🔴 [DEBUG] Button clicked!");
+            handleReservation();
+          }}
           className="w-full rounded-lg bg-primary px-6 py-2.5 font-bold text-white shadow-md transition-all hover:bg-primary-dark hover:shadow-lg active:scale-[0.98]"
         >
           <span className="text-base">予約する</span>
