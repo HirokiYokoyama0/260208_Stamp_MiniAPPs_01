@@ -12,6 +12,7 @@ const OFFICIAL_ACCOUNT_URL = "https://line.me/R/ti/p/@550mlcao";
 interface ProxyChild {
   id: string;
   display_name: string;
+  real_name: string | null;
   stamp_count: number;
 }
 
@@ -331,7 +332,7 @@ export default function SettingsPage() {
                 <Baby size={32} className="text-kids-pink" />
                 <div className="flex-1 text-left">
                   <p className="font-semibold text-gray-800">
-                    子供の画面：{child.display_name}
+                    子供の画面：{child.real_name || child.display_name || "登録なし"}
                   </p>
                   <p className="text-xs text-gray-500">
                     スタンプ {child.stamp_count}個

@@ -8,8 +8,7 @@ import { useViewMode } from '@/contexts/ViewModeContext';
 
 export default function ChildModeSettingsPage() {
   const router = useRouter();
-  const { setSelectedChildId, setViewMode } = useViewMode();
-  const [childId, setChildId] = useState<string | null>(null);
+  const { selectedChildId, setSelectedChildId, setViewMode } = useViewMode();
   const [displayName, setDisplayName] = useState('');
   const [ticketNumber, setTicketNumber] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -21,13 +20,12 @@ export default function ChildModeSettingsPage() {
   useEffect(() => {
     const fetchChildProfile = async () => {
       try {
-        const id = localStorage.getItem('currentChildId');
-        if (!id) {
+        // ViewModeContextから直接selectedChildIdを取得
+        if (!selectedChildId) {
           throw new Error('子供IDが見つかりません');
         }
-        setChildId(id);
 
-        const res = await fetch(`/api/profiles/${id}`);
+        const res = await fetch(`/api/profiles/${selectedChildId}`);
         const data = await res.json();
 
         if (!res.ok) {
@@ -46,11 +44,11 @@ export default function ChildModeSettingsPage() {
     };
 
     fetchChildProfile();
-  }, []);
+  }, [selectedChildId]);
 
   // 保存処理
   const handleSave = async () => {
-    if (!childId) return;
+    if (!selectedChildId) return;
 
     // バリデーション
     if (!displayName.trim()) {
@@ -72,7 +70,7 @@ export default function ChildModeSettingsPage() {
           ticket_number: ticketNumber.trim() || null,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', childId);
+        .eq('id', selectedChildId);
 
       if (updateError) {
         throw updateError;

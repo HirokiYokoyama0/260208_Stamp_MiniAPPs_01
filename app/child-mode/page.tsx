@@ -28,8 +28,8 @@ export default function ChildModePage() {
   useEffect(() => {
     const fetchChildProfile = async () => {
       try {
-        // LocalStorageから子供のIDを取得
-        const childId = localStorage.getItem('currentChildId');
+        // LocalStorageから子供のIDを取得（ViewModeContextと同じキー名を使用）
+        const childId = localStorage.getItem('selectedChildId');
 
         if (!childId) {
           throw new Error('子供IDが見つかりません');
@@ -56,8 +56,8 @@ export default function ChildModePage() {
   }, []);
 
   const handleBack = () => {
-    // LocalStorageをクリア
-    localStorage.removeItem('currentChildId');
+    // LocalStorageをクリア（ViewModeContextと同じキー名を使用）
+    localStorage.removeItem('selectedChildId');
     router.push('/family/manage');
   };
 
