@@ -381,9 +381,10 @@ export default function FamilyManagePage() {
                         <label className="block text-xs text-gray-600 mb-1">名前</label>
                         <input
                           type="text"
-                          defaultValue={member.real_name || member.display_name}
+                          defaultValue={member.real_name || ""}
                           id={`edit-name-${member.id}`}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                          placeholder="名前を入力"
                         />
                       </div>
                       <div>
@@ -421,7 +422,9 @@ export default function FamilyManagePage() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold text-gray-800">{member.real_name || member.display_name}</p>
+                          <p className="font-semibold text-gray-800">
+                            {isVirtualChild ? (member.real_name || "登録なし") : member.display_name}
+                          </p>
                           {member.family_role === 'parent' && (
                             <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded font-medium">
                               代表者
@@ -468,7 +471,10 @@ export default function FamilyManagePage() {
                           )}
                           {/* 削除ボタン */}
                           <button
-                            onClick={() => handleRemoveMember(member.id, member.real_name || member.display_name)}
+                            onClick={() => handleRemoveMember(
+                              member.id,
+                              isVirtualChild ? (member.real_name || "登録なし") : member.display_name
+                            )}
                             disabled={isLoading}
                             className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                           >

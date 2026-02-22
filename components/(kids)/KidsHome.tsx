@@ -98,7 +98,7 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
             });
 
             setStampCount(data.stamp_count ?? 0);
-            setDisplayName(data.real_name || data.display_name || "おともだち");
+            setDisplayName(data.real_name || "登録なし");
             setTicketNumber(data.ticket_number);
             setFamilyId(data.family_id);
 
