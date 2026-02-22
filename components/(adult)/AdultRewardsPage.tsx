@@ -9,7 +9,7 @@ import {
   addRewardStatus,
   fetchUserExchangeHistory,
 } from "@/lib/rewards";
-import { fetchStampCount } from "@/lib/stamps";
+import { fetchStampCount, calculateStampDisplay } from "@/lib/stamps";
 import { RewardWithStatus, RewardExchange } from "@/types/reward";
 
 export default function AdultRewardsPage() {
@@ -19,6 +19,9 @@ export default function AdultRewardsPage() {
   const [exchangeHistory, setExchangeHistory] = useState<RewardExchange[]>([]);
   const [isLoadingRewards, setIsLoadingRewards] = useState(true);
   const [isExchanging, setIsExchanging] = useState(false);
+
+  // 10倍整数システム対応のスタンプ表示
+  const { fullStamps, progress } = calculateStampDisplay(stampCount);
 
   // 特典一覧とスタンプ数、交換履歴を取得
   useEffect(() => {
@@ -141,7 +144,20 @@ export default function AdultRewardsPage() {
       {/* 現在のスタンプ数 */}
       <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
         <p className="text-xs text-gray-500">現在のスタンプ数</p>
-        <p className="mt-2 text-4xl font-bold text-primary">{stampCount}個</p>
+        <p className="mt-2 text-4xl font-bold text-primary">{fullStamps}個</p>
+        {progress > 0 && (
+          <div className="mt-3 rounded-lg bg-sky-50 p-2">
+            <p className="text-xs text-sky-700 font-medium">
+              次のスタンプまで: {progress}%
+            </p>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-sky-100">
+              <div
+                className="h-full rounded-full bg-sky-400 transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </section>
 
       {/* 特典一覧 */}

@@ -129,3 +129,69 @@ export const getStampProgress = (
     isComplete,
   };
 };
+
+// ========================================
+// スタンプ表示ユーティリティ
+// ========================================
+
+/**
+ * スタンプ表示データ
+ */
+export interface StampDisplay {
+  /** スタンプ数（stamp_countをそのまま表示） */
+  fullStamps: number;
+  /** 次のスタンプまでの進捗（常に0%、将来拡張用） */
+  progress: number;
+  /** スタンプ数（生データ） */
+  totalPoints: number;
+}
+
+/**
+ * スタンプ数を表示データに変換
+ * DBの値をそのまま返す（変換しない）
+ *
+ * @param stampCount - スタンプ数（10, 20, 30, 135...）
+ * @returns スタンプ表示データ
+ *
+ * @example
+ * calculateStampDisplay(135)
+ * // → { fullStamps: 135, progress: 0, totalPoints: 135 }
+ *
+ * calculateStampDisplay(20)
+ * // → { fullStamps: 20, progress: 0, totalPoints: 20 }
+ */
+export function calculateStampDisplay(stampCount: number): StampDisplay {
+  return {
+    fullStamps: stampCount,
+    progress: 0,
+    totalPoints: stampCount,
+  };
+}
+
+/**
+ * スタンプ数を文字列に変換（「○個」形式）
+ *
+ * @param stampCount - スタンプ数
+ * @returns フォーマットされた文字列
+ *
+ * @example
+ * formatStampCount(135) // → "135個"
+ * formatStampCount(20)  // → "20個"
+ */
+export function formatStampCount(stampCount: number): string {
+  return `${stampCount}個`;
+}
+
+/**
+ * スタンプ付与量の定数
+ */
+export const STAMP_AMOUNTS = {
+  /** 通常の来院: 10個 */
+  REGULAR_VISIT: 10,
+  /** スロット当選（最小）: 3個 */
+  SLOT_MIN: 3,
+  /** スロット当選（中）: 5個 */
+  SLOT_MID: 5,
+  /** スロット当選（最大）: 8個 */
+  SLOT_MAX: 8,
+} as const;

@@ -9,6 +9,7 @@ import {
   Gift,
   ClipboardCheck,
   Building2,
+  Settings,
 } from "lucide-react";
 import { useLiff } from "@/hooks/useLiff";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
@@ -21,6 +22,7 @@ const TABS = [
   { href: "/rewards", label: "特典", icon: Gift },
   { href: "/care", label: "ケア記録", icon: ClipboardCheck },
   { href: "/info", label: "医院情報", icon: Building2 },
+  { href: "/settings", label: "設定", icon: Settings },
 ] as const;
 
 interface AppLayoutProps {

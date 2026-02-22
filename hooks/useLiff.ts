@@ -72,23 +72,35 @@ export function useLiff(): UseLiffReturn {
     let mounted = true;
 
     const initLiff = async () => {
-      if (typeof window === "undefined") return;
+      console.log('[useLiff] 初期化開始');
+      if (typeof window === "undefined") {
+        console.log('[useLiff] サーバーサイドのため初期化スキップ');
+        return;
+      }
       if (!LIFF_ID) {
+        console.error('[useLiff] LIFF_IDが設定されていません');
         setError(new Error("NEXT_PUBLIC_LIFF_ID is not set"));
         setIsLoading(false);
         return;
       }
 
+      console.log('[useLiff] LIFF_ID:', LIFF_ID);
+
       try {
+        console.log('[useLiff] liff.init() 実行中...');
         await liff.init({ liffId: LIFF_ID });
         if (!mounted) return;
 
+        console.log('[useLiff] liff.init() 完了');
         setIsInitialized(true);
 
         if (liff.isLoggedIn()) {
+          console.log('[useLiff] ログイン済み - プロフィール取得中...');
           setIsLoggedIn(true);
           const profileData = await liff.getProfile();
           if (!mounted) return;
+
+          console.log('[useLiff] プロフィール取得完了:', profileData);
 
           setProfile({
             userId: profileData.userId,
@@ -98,16 +110,21 @@ export function useLiff(): UseLiffReturn {
           });
 
           // 友だち状態をチェック
+          console.log('[useLiff] 友だち状態チェック中...');
           await checkFriendship();
+          console.log('[useLiff] 友だち状態チェック完了');
         } else {
+          console.log('[useLiff] 未ログイン');
           setIsLoggedIn(false);
         }
       } catch (err) {
+        console.error('[useLiff] エラー発生:', err);
         if (!mounted) return;
         setError(err instanceof Error ? err : new Error("LIFF init failed"));
         setIsInitialized(false);
       } finally {
         if (mounted) {
+          console.log('[useLiff] 初期化完了 - isLoading=false');
           setIsLoading(false);
         }
       }

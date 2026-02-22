@@ -1,82 +1,17 @@
 "use client";
 
-import Link from "next/link";
-import { useLiff } from "@/hooks/useLiff";
 import {
   Building2,
   MapPin,
   Clock,
-  Heart,
   ExternalLink,
-  CheckCircle2,
-  Settings,
 } from "lucide-react";
 
-const OFFICIAL_ACCOUNT_URL = "https://line.me/R/ti/p/@550mlcao";
-
 export default function AdultInfoPage() {
-  const { isLoggedIn, isLoading, isFriend } = useLiff();
-
-  // 友だち登録ボタンのクリック
-  const handleAddFriend = () => {
-    window.open(OFFICIAL_ACCOUNT_URL, "_blank");
-  };
 
   return (
     <div className="px-4 py-6">
       <h2 className="mb-4 text-lg font-semibold text-gray-800">医院情報</h2>
-
-      {/* 設定リンク */}
-      <section className="mb-6">
-        <Link
-          href="/settings"
-          className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50"
-        >
-          <Settings className="text-primary" size={20} />
-          <div className="flex-1">
-            <p className="font-semibold text-gray-800">設定</p>
-            <p className="text-xs text-gray-500">表示モードの切り替えなど</p>
-          </div>
-          <span className="text-gray-400">›</span>
-        </Link>
-      </section>
-
-      {/* 公式LINE友だち登録セクション */}
-      <section className="mb-6 rounded-lg border border-primary/20 bg-primary/5 p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <Heart className="text-primary" size={20} />
-          <h3 className="font-semibold text-gray-800">公式LINE</h3>
-        </div>
-
-        {isLoading || isFriend === null ? (
-          <p className="text-sm text-gray-500">確認中...</p>
-        ) : isFriend === true ? (
-          <div className="flex items-center gap-2 text-sm text-primary">
-            <CheckCircle2 size={18} />
-            <span className="font-medium">友だち登録済みです</span>
-          </div>
-        ) : (
-          <div>
-            <p className="mb-3 text-sm text-gray-700">
-              公式LINEを友だち登録すると、以下の通知を受け取れます：
-            </p>
-            <ul className="mb-4 space-y-1 text-sm text-gray-600">
-              <li>• 定期検診のリマインド</li>
-              <li>• キャンペーン情報</li>
-              <li>• 特典交換のお知らせ</li>
-              <li>• 休診日のお知らせ</li>
-            </ul>
-            <button
-              onClick={handleAddFriend}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#06C755] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#05b34b]"
-            >
-              <Heart size={18} />
-              友だち追加する
-              <ExternalLink size={16} />
-            </button>
-          </div>
-        )}
-      </section>
 
       {/* 医院基本情報 */}
       <section className="mb-6">

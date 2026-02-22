@@ -10,6 +10,7 @@ import {
   addStamp,
   formatStampDate,
   getStampProgress,
+  calculateStampDisplay,
 } from "@/lib/stamps";
 import { StampHistoryRecord } from "@/types/stamp";
 
@@ -21,6 +22,9 @@ export default function AdultStampPage() {
   const [stampHistory, setStampHistory] = useState<StampHistoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
+
+  // 10倍整数システム対応のスタンプ表示
+  const { fullStamps, progress: stampProgress } = calculateStampDisplay(stampCount);
 
   // スタンプ履歴とカウント数を取得
   const fetchHistory = async () => {
@@ -65,7 +69,8 @@ export default function AdultStampPage() {
         setStampCount(result.stampCount || stampCount + 1);
         // 履歴を再取得して画面更新
         await fetchHistory();
-        alert(`スタンプを取得しました！\n現在 ${result.stampCount} / ${STAMP_GOAL}個`);
+        const { fullStamps: updatedStamps } = calculateStampDisplay(result.stampCount || stampCount + 1);
+        alert(`スタンプを取得しました！\n現在 ${updatedStamps} / ${STAMP_GOAL}個`);
       } else {
         // エラー表示
         console.error("❌ スタンプ付与失敗:", result.error);
@@ -80,7 +85,7 @@ export default function AdultStampPage() {
   };
 
   // スタンプ進捗を計算
-  const progress = getStampProgress(stampCount, STAMP_GOAL);
+  const progress = getStampProgress(fullStamps, STAMP_GOAL);
 
   return (
     <div className="space-y-6 px-4 py-6">
@@ -96,7 +101,7 @@ export default function AdultStampPage() {
         </div>
         <div className="mt-4 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-5xl font-bold text-primary">{stampCount}</p>
+            <p className="text-5xl font-bold text-primary">{fullStamps}</p>
             <p className="mt-2 text-sm text-gray-500">/ {STAMP_GOAL}個</p>
           </div>
         </div>
@@ -107,6 +112,19 @@ export default function AdultStampPage() {
             style={{ width: `${progress.percentage}%` }}
           />
         </div>
+        {stampProgress > 0 && (
+          <div className="mt-4 rounded-lg bg-sky-50 p-2.5">
+            <p className="text-xs text-sky-700 font-medium">
+              次のスタンプまで: {stampProgress}%
+            </p>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-sky-100">
+              <div
+                className="h-full rounded-full bg-sky-400 transition-all"
+                style={{ width: `${stampProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
         <p className="mt-3 text-center text-xs text-gray-500">
           {progress.isComplete ? (
             <span className="flex items-center justify-center gap-1 font-semibold text-accent">
@@ -147,6 +165,7 @@ export default function AdultStampPage() {
           <ul className="space-y-3">
             {stampHistory.map((record, index) => {
               const visitNumber = stampHistory.length - index; // 訪問回数（最新が1番目）
+              const { fullStamps: recordStamps } = calculateStampDisplay(record.stamp_number);
               return (
                 <li
                   key={record.id}
@@ -163,7 +182,7 @@ export default function AdultStampPage() {
                       )}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {formatStampDate(record.visit_date)} • スタンプ {record.stamp_number}個
+                      {formatStampDate(record.visit_date)} • スタンプ {recordStamps}個
                     </p>
                   </div>
                 </li>

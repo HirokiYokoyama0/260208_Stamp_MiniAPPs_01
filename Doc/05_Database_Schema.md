@@ -5,8 +5,9 @@
 このドキュメントでは、Supabase（PostgreSQL）のデータベース構造を全体的にまとめています。
 
 **作成日:** 2026-02-16
+**最終更新:** 2026-02-18
 **データベース:** Supabase PostgreSQL
-**バージョン:** 1.0
+**バージョン:** 1.2 (Phase 2 家族機能追加)
 
 ---
 
@@ -16,67 +17,101 @@
 |-----------|------|------------------------|
 | [profiles](#1-profiles-テーブル) | ユーザープロフィール（メインテーブル） | 001_create_profiles_table.sql |
 | [stamp_history](#2-stamp_history-テーブル) | スタンプ取得履歴 | 002_create_stamp_history_table.sql |
-| [rewards](#3-rewards-テーブル) | 特典マスター | 003_create_rewards_tables.sql |
-| [reward_exchanges](#4-reward_exchanges-テーブル) | 特典交換履歴 | 003_create_rewards_tables.sql |
+| [families](#3-families-テーブル) | 家族グループ（Phase 2） | 009_add_family_support.sql |
+| [rewards](#4-rewards-テーブル) | 特典マスター | 003_create_rewards_tables.sql |
+| [reward_exchanges](#5-reward_exchanges-テーブル) | 特典交換履歴 | 003_create_rewards_tables.sql |
+
+**ビュー:**
+| ビュー名 | 説明 | マイグレーションファイル |
+|---------|------|------------------------|
+| [family_stamp_totals](#6-family_stamp_totals-ビュー) | 家族ごとのスタンプ合計 | 009_add_family_support.sql |
 
 ---
 
 ## 📐 ER図（エンティティ関連図）
 
 ```
-┌─────────────────────┐
-│     profiles        │ ◄────┐
-│─────────────────────│      │
-│ id (PK, TEXT)       │      │ 1
-│ line_user_id        │      │
-│ display_name        │      │
-│ picture_url         │      │
-│ stamp_count         │      │
-│ ticket_number       │      │
-│ last_visit_date     │      │
-│ is_line_friend      │      │
-│ view_mode           │      │
-│ next_visit_date     │      │
-│ next_memo           │      │
-│ next_memo_updated_at│      │
-│ reservation_button_ │      │
-│   clicks            │      │
-│ created_at          │      │
-│ updated_at          │      │
-└─────────────────────┘      │
-                             │
-         ┌───────────────────┴───────────────────┐
-         │                                       │
-         │ N                                     │ N
-┌────────┴──────────────┐          ┌────────────┴───────────┐
-│   stamp_history       │          │   reward_exchanges     │
-│───────────────────────│          │────────────────────────│
-│ id (PK, UUID)         │          │ id (PK, UUID)          │
-│ user_id (FK)          │          │ user_id (FK)           │
-│ visit_date            │          │ reward_id (FK)         │
-│ stamp_number          │          │ stamp_count_used       │
-│ stamp_method          │          │ exchanged_at           │
-│ qr_code_id            │          │ status                 │
-│ notes                 │          │ notes                  │
-│ created_at            │          │ created_at             │
-│ updated_at            │          │ updated_at             │
-└───────────────────────┘          └────────────────────────┘
-                                                │
-                                                │ N
-                                                │
-                                      ┌─────────┴──────────┐
-                                      │     rewards        │
-                                      │────────────────────│
-                                      │ id (PK, UUID)      │
-                                      │ name               │
-                                      │ description        │
-                                      │ required_stamps    │
-                                      │ image_url          │
-                                      │ is_active          │
-                                      │ display_order      │
-                                      │ created_at         │
-                                      │ updated_at         │
-                                      └────────────────────┘
+                    ┌─────────────────────┐
+         ┌─────────►│     families        │◄──────┐
+         │          │─────────────────────│       │
+         │ N        │ id (PK, TEXT/UUID)  │       │ 1
+         │          │ family_name         │       │
+         │          │ representative_     │       │
+         │          │   user_id (FK)      │───────┘
+         │          │ created_at          │
+         │          │ updated_at          │
+         │          └─────────────────────┘
+         │ FK                    │
+         │                       │ 1
+         │                       │
+         │                       ▼ Aggregated by
+         │          ┌─────────────────────────────┐
+         │          │  family_stamp_totals (VIEW) │
+         │          │─────────────────────────────│
+         │          │ family_id                   │
+         │          │ family_name                 │
+         │          │ total_stamp_count           │
+         │          │ total_visit_count           │
+         │          │ member_count                │
+         │          │ ...                         │
+         │          └─────────────────────────────┘
+         │
+┌────────┴──────────────┐
+│     profiles          │ ◄────┐
+│───────────────────────│      │
+│ id (PK, TEXT)         │      │ 1
+│ line_user_id          │      │
+│ display_name          │      │
+│ picture_url           │      │
+│ stamp_count           │      │
+│ visit_count           │      │
+│ family_id (FK)        │──────┘ (循環参照)
+│ family_role           │
+│ ticket_number         │
+│ last_visit_date       │
+│ is_line_friend        │
+│ view_mode             │
+│ next_visit_date       │
+│ next_memo             │
+│ next_memo_updated_at  │
+│ reservation_button_   │
+│   clicks              │
+│ created_at            │
+│ updated_at            │
+└───────────────────────┘
+         │ 1
+         ├───────────────────┬───────────────────┐
+         │ N                 │ N                 │
+         │                   │                   │
+         ▼                   ▼                   │
+┌────────────────────┐  ┌──────────────────┐   │
+│  stamp_history     │  │reward_exchanges  │   │
+│────────────────────│  │──────────────────│   │
+│ id (PK, UUID)      │  │ id (PK, UUID)    │   │
+│ user_id (FK)       │  │ user_id (FK)     │   │
+│ visit_date         │  │ reward_id (FK)   │───┐
+│ stamp_number       │  │ stamp_count_used │   │
+│ amount             │  │ exchanged_at     │   │
+│ stamp_method       │  │ status           │   │
+│ qr_code_id         │  │ notes            │   │
+│ notes              │  │ created_at       │   │
+│ created_at         │  │ updated_at       │   │
+│ updated_at         │  └──────────────────┘   │ N
+└────────────────────┘              │           │
+                                    │ 1         ▼
+                          ┌─────────┴──────────────┐
+                          │     rewards            │
+                          │────────────────────────│
+                          │ id (PK, UUID)          │
+                          │ name                   │
+                          │ description            │
+                          │ required_stamps        │
+                          │ image_url              │
+                          │ is_active              │
+                          │ display_order          │
+                          │ created_at             │
+                          │ updated_at             │
+                          └────────────────────────┘
 ```
 
 ---
@@ -95,7 +130,10 @@
 | `line_user_id` | TEXT | NO | - | LINEユーザーID（冗長だが将来の拡張用） |
 | `display_name` | TEXT | YES | - | LINEの表示名 |
 | `picture_url` | TEXT | YES | - | LINEプロフィール画像URL |
-| `stamp_count` | INTEGER | NO | 0 | 来院スタンプ数（`stamp_history` トリガーで自動更新） |
+| `stamp_count` | INTEGER | NO | 0 | 累積ポイント（内部単位: 10点 = スタンプ1個、`stamp_history` トリガーで自動更新） |
+| `visit_count` | INTEGER | NO | 0 | 純粋な来院回数（スロット除く通院のみカウント、トリガーで自動更新） |
+| `family_id` | TEXT | YES | - | 所属する家族のID（FK → `families.id`、Phase 2で追加） |
+| `family_role` | TEXT | YES | - | 家族内の役割（'parent' or 'child'、Phase 2で追加） |
 | `ticket_number` | TEXT | YES | - | 診察券番号（任意） |
 | `last_visit_date` | TIMESTAMPTZ | YES | - | 最終来院日時（`stamp_history` トリガーで自動更新） |
 | `is_line_friend` | BOOLEAN | YES | NULL | 公式LINE友だち登録状態 (NULL=未確認, true=友だち, false=未登録) |
@@ -118,6 +156,8 @@
 - PRIMARY KEY: `id`
 - UNIQUE: `line_user_id`
 - CHECK: `view_mode IN ('adult', 'kids')`
+- CHECK: `family_role IN ('parent', 'child')`
+- FOREIGN KEY: `family_id` → `families(id)` ON DELETE SET NULL
 
 **RLS (Row Level Security):**
 - ✅ 有効
@@ -136,7 +176,8 @@
 | `id` | UUID | NO | gen_random_uuid() | **主キー**: 履歴レコードの一意識別子 |
 | `user_id` | TEXT | NO | - | **外部キー**: profiles.id へのリンク |
 | `visit_date` | TIMESTAMPTZ | NO | - | 実際の来院日時 |
-| `stamp_number` | INTEGER | NO | - | **その時点でのスタンプ数（累積）** |
+| `stamp_number` | INTEGER | NO | - | **付与後の累積ポイント** |
+| `amount` | INTEGER | NO | 10 | **今回付与したポイント**（通常来院=10点、スロット=3点〜8点） |
 | `stamp_method` | TEXT | NO | 'qr_scan' | 取得方式 ('qr_scan', 'manual_admin', 'import') |
 | `qr_code_id` | TEXT | YES | - | QRコードの一意識別子（重複防止用） |
 | `notes` | TEXT | YES | - | 管理者による備考（オプション） |
@@ -170,7 +211,44 @@
 
 ---
 
-### 3. `rewards` テーブル
+### 3. `families` テーブル
+
+**説明:** 家族グループの実体を管理（Phase 2で追加）
+
+**作成:** `009_add_family_support.sql`
+
+| カラム名 | 型 | NULL許可 | デフォルト | 説明 |
+|---------|---|---------|----------|------|
+| `id` | TEXT | NO | gen_random_uuid()::TEXT | **主キー**: 家族グループの一意識別子（UUID形式、TEXT型） |
+| `family_name` | TEXT | NO | - | 家族名（例: "横山家"、"○○さんの家族"） |
+| `representative_user_id` | TEXT | YES | - | **外部キー**: 代表者（親）のID（profiles.id へのリンク） |
+| `created_at` | TIMESTAMPTZ | NO | NOW() | レコード作成日時 |
+| `updated_at` | TIMESTAMPTZ | NO | NOW() | レコード更新日時（トリガーで自動更新） |
+
+**インデックス:**
+- `idx_families_representative` - 代表者IDでの検索用
+
+**制約:**
+- PRIMARY KEY: `id`
+- FOREIGN KEY: `representative_user_id` → `profiles(id)` ON DELETE SET NULL
+
+**RLS (Row Level Security):**
+- ✅ 有効
+- ポリシー: `allow_public_read_families`, `allow_public_insert_families`, `allow_public_update_families`, `allow_public_delete_families` (開発段階)
+
+**トリガー:**
+- `trigger_update_families_updated_at` (BEFORE UPDATE)
+  - 更新時に `updated_at` を自動更新
+
+**設計ポイント:**
+- `id` は UUID 形式だが TEXT 型で保存（`profiles.id` が TEXT 型のため統一）
+- `representative_user_id` と `profiles.family_id` は循環参照の関係
+- 家族削除時、メンバーの `family_id` は NULL になる（単身に戻る）
+- 代表者削除時、家族は残る（`representative_user_id` が NULL になる）
+
+---
+
+### 4. `rewards` テーブル
 
 **説明:** 特典マスター（交換可能な特典の定義）
 
@@ -213,7 +291,7 @@
 
 ---
 
-### 4. `reward_exchanges` テーブル
+### 5. `reward_exchanges` テーブル
 
 **説明:** 特典交換履歴（誰がいつどの特典と交換したか）
 
@@ -256,6 +334,66 @@
 | `pending` | 交換申請済み | 受付で特典を提供する前 |
 | `completed` | 提供完了 | 受付で実際に特典を渡した後 |
 | `cancelled` | キャンセル | 誤交換などの取り消し |
+
+---
+
+### 6. `family_stamp_totals` ビュー
+
+**説明:** 家族ごとのスタンプ合計・来院回数を集計（Phase 2で追加）
+
+**作成:** `009_add_family_support.sql`
+
+| カラム名 | 型 | 説明 |
+|---------|-----|------|
+| `family_id` | TEXT | 家族グループID（families.id） |
+| `family_name` | TEXT | 家族名 |
+| `representative_user_id` | TEXT | 代表者（親）のID |
+| `total_stamp_count` | BIGINT | 家族の合計スタンプ数（内部ポイント: 10点 = 1スタンプ） |
+| `total_visit_count` | BIGINT | 家族の合計来院回数 |
+| `member_count` | BIGINT | 家族のメンバー数 |
+| `last_family_visit` | TIMESTAMPTZ | 家族の最終来院日 |
+| `last_family_login` | TIMESTAMPTZ | 家族の最終ログイン日時 |
+| `created_at` | TIMESTAMPTZ | 家族作成日時 |
+| `updated_at` | TIMESTAMPTZ | 家族更新日時 |
+
+**定義SQL:**
+```sql
+CREATE OR REPLACE VIEW family_stamp_totals AS
+SELECT
+  f.id AS family_id,
+  f.family_name,
+  f.representative_user_id,
+  SUM(p.stamp_count) AS total_stamp_count,
+  SUM(p.visit_count) AS total_visit_count,
+  COUNT(p.id) AS member_count,
+  MAX(p.last_visit_date) AS last_family_visit,
+  MAX(p.updated_at) AS last_family_login,
+  f.created_at,
+  f.updated_at
+FROM families f
+LEFT JOIN profiles p ON p.family_id = f.id
+GROUP BY f.id, f.family_name, f.representative_user_id, f.created_at, f.updated_at;
+```
+
+**使用例:**
+```sql
+-- 特定家族のスタンプ合計を取得
+SELECT total_stamp_count, member_count
+FROM family_stamp_totals
+WHERE family_id = 'fbaae6e8-e64f-4748-81b8-dbb455393b1e';
+
+-- 家族ごとのスタンプ数ランキング
+SELECT family_name, total_stamp_count, member_count
+FROM family_stamp_totals
+ORDER BY total_stamp_count DESC
+LIMIT 10;
+```
+
+**設計ポイント:**
+- リアルタイムで計算される（マテリアライズドビューではない）
+- 家族にメンバーが1人もいない場合、`total_stamp_count` は NULL
+- `member_count` は家族に紐付いている profiles の数
+- 表示時は `total_stamp_count ÷ 10` で実際のスタンプ数を計算
 
 ---
 
@@ -337,6 +475,21 @@
 **作成:** `003_create_rewards_tables.sql`
 
 **トリガー:** `trigger_update_reward_exchanges_updated_at` (BEFORE UPDATE on reward_exchanges)
+
+---
+
+### 6. `update_families_updated_at()`
+
+**説明:** families テーブルの updated_at を自動更新（Phase 2で追加）
+
+**作成:** `009_add_family_support.sql`
+
+**トリガー:** `trigger_update_families_updated_at` (BEFORE UPDATE on families)
+
+**処理内容:**
+```sql
+-- families テーブルが更新されたら updated_at を NOW() で更新
+```
 
 ---
 
@@ -509,26 +662,55 @@ GROUP BY stamp_count
 ORDER BY stamp_count;
 ```
 
+### 家族のスタンプ合計取得（Phase 2）
+
+```sql
+-- 特定ユーザーの家族スタンプ合計を取得
+SELECT
+  p.display_name AS ユーザー名,
+  p.family_role AS 役割,
+  fst.family_name AS 家族名,
+  fst.total_stamp_count AS 家族合計スタンプ,
+  fst.member_count AS メンバー数
+FROM profiles p
+JOIN family_stamp_totals fst ON p.family_id = fst.family_id
+WHERE p.line_user_id = 'Ufff5352c2c1ff940968ae09571d92a8e';
+
+-- 家族ごとのスタンプ数ランキング
+SELECT
+  family_name AS 家族名,
+  total_stamp_count AS 合計スタンプ,
+  member_count AS メンバー数,
+  total_stamp_count / 10 AS 表示スタンプ数
+FROM family_stamp_totals
+WHERE member_count > 0
+ORDER BY total_stamp_count DESC;
+```
+
 ---
 
 ## 🚀 マイグレーション実行順序
 
 データベースをゼロから構築する場合、以下の順序でSQLファイルを実行してください。
 
-| 順序 | ファイル名 | 説明 |
-|-----|-----------|------|
-| 1 | `001_create_profiles_table.sql` | プロフィールテーブル作成 |
-| 2 | `002_create_stamp_history_table.sql` | スタンプ履歴テーブル + トリガー作成 |
-| 3 | `003_create_rewards_tables.sql` | 特典システムテーブル + 初期データ |
-| 4 | `004_add_is_line_friend_column.sql` | 友だち登録フラグ追加 |
-| 5 | `005_add_view_mode_column.sql` | 表示モードカラム追加 |
-| 6 | `006_add_next_memo_columns.sql` | 次回メモ機能カラム + トリガー追加 |
-| 7 | `007_add_reservation_clicks.sql` | 予約ボタンクリック数カラム + 関数追加 |
+| 順序 | ファイル名 | 説明 | Phase |
+|-----|-----------|------|-------|
+| 1 | `001_create_profiles_table.sql` | プロフィールテーブル作成 | Phase 0 |
+| 2 | `002_create_stamp_history_table.sql` | スタンプ履歴テーブル + トリガー作成 | Phase 0 |
+| 3 | `003_create_rewards_tables.sql` | 特典システムテーブル + 初期データ | Phase 0 |
+| 4 | `004_add_is_line_friend_column.sql` | 友だち登録フラグ追加 | Phase 0 |
+| 5 | `005_add_view_mode_column.sql` | 表示モードカラム追加 | Phase 0 |
+| 6 | `006_add_next_memo_columns.sql` | 次回メモ機能カラム + トリガー追加 | Phase 0 |
+| 7 | `007_add_reservation_clicks.sql` | 予約ボタンクリック数カラム + 関数追加 | Phase 0 |
+| 8 | `008_add_10x_system_columns.sql` | 10倍整数システム対応（visit_count, amount カラム追加） | Phase 1 |
+| 9 | `009_add_family_support.sql` | **家族機能追加**（families テーブル、family_id/family_role カラム、family_stamp_totals ビュー） | **Phase 2** |
+| 10 | `009_fix_rls_policies.sql` | RLSポリシー修正（auth.uid() 削除） | Phase 2 |
 
 **注意:**
 - 002 は 001 に依存（外部キー: profiles.id）
 - 003 は 001 に依存（外部キー: profiles.id）
 - 004〜007 は 001 に依存（profiles テーブルへのカラム追加）
+- 009 は 001 に依存（families ↔ profiles の循環参照）
 
 ---
 
@@ -650,8 +832,10 @@ CREATE POLICY "allow_public_read" ON profiles FOR SELECT USING (true);
 | 日付 | バージョン | 内容 |
 |------|----------|------|
 | 2026-02-16 | 1.0 | 初版作成：全テーブル・関数・トリガーを統合したスキーマドキュメント |
+| 2026-02-16 | 1.1 | 008マイグレーション追加（visit_count, amount カラム）、スタンプ表記を「点」に統一 |
+| 2026-02-18 | 1.2 | **Phase 2 家族機能追加**：families テーブル、family_stamp_totals ビュー、profiles テーブルへの family_id/family_role カラム追加、ER図更新、009/009-fixマイグレーション追加 |
 
 ---
 
 **作成者:** Claude Code
-**最終更新日:** 2026-02-16
+**最終更新日:** 2026-02-18

@@ -110,6 +110,36 @@
   - [x] 90_実装履歴.md に記録
   - [x] 10_TODO.md 更新
 
+### Phase 1: 10倍整数システムへの移行（2026-02-16）✅
+- [x] データベースマイグレーション
+  - [x] 008_add_10x_system_columns.sql 作成
+  - [x] profiles.visit_count カラム追加（純粋な来院回数）
+  - [x] stamp_history.amount カラム追加（今回付与したポイント）
+  - [x] トリガー関数更新（visit_count 自動計算）
+- [x] ユーティリティ関数作成
+  - [x] lib/stamps.ts に calculateStampDisplay() 追加
+  - [x] lib/stamps.ts に formatStampCount() 追加
+  - [x] STAMP_AMOUNTS 定数定義
+- [x] フロントエンド修正
+  - [x] AdultHome.tsx のスタンプ表示ロジック変更（進捗ゲージ追加）
+  - [x] AdultStampPage.tsx のスタンプ表示ロジック変更
+  - [x] AdultRewardsPage.tsx のスタンプ表示ロジック変更
+- [x] API修正
+  - [x] /api/stamps の付与量を +1 → +10 に変更
+  - [x] /api/stamps に amount カラム追加
+  - [x] /api/stamps/manual に amount カラム追加
+- [x] ドキュメント整備
+  - [x] 20_家族ひもづけ仕様検討.md 更新（Phase1完了を反映）
+  - [x] 21_家族ひもづけ機能_管理ダッシュボード仕様書.md 更新
+  - [x] 05_Database_Schema.md 更新（visit_count, amount カラム追加）
+  - [x] 03_機能仕様書.md 更新（改訂履歴）
+  - [x] 10_TODO.md 更新（本項目）
+
+**注意:**
+- 現時点では既存データの×10処理は未実施（開発環境のため）
+- 表示ロジックは10倍システムに対応済み
+- 本番環境では `UPDATE profiles SET stamp_count = stamp_count * 10;` が必要
+
 ---
 
 ## 進行中タスク 🚧

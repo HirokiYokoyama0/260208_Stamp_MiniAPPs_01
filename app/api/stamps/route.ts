@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { AddStampResponse } from "@/types/stamp";
+import { STAMP_AMOUNTS } from "@/lib/stamps";
 
 interface StampRegistrationRequest {
   userId: string; // LINEユーザーID
@@ -97,7 +98,8 @@ export async function POST(
     }
 
     const currentStampCount = profileData?.stamp_count ?? 0;
-    const nextStampNumber = currentStampCount + 1;
+    const stampAmount = STAMP_AMOUNTS.REGULAR_VISIT; // 通常来院: +10個
+    const nextStampNumber = currentStampCount + stampAmount;
 
     // stamp_historyに新規レコードを挿入
     const { data: stampData, error: insertError } = await supabase
@@ -108,6 +110,7 @@ export async function POST(
         stamp_number: nextStampNumber,
         stamp_method: "qr_scan",
         qr_code_id: qrCodeId,
+        amount: stampAmount, // 今回付与したスタンプ数
       })
       .select()
       .single();

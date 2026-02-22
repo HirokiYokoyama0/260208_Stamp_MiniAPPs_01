@@ -3,7 +3,7 @@
   "version": "0.0.0-dev",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 4000",
     "prebuild": "node scripts/update-version.mjs",
     "build": "next build",
     "start": "next start",

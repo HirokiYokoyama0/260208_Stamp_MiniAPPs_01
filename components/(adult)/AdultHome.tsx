@@ -7,7 +7,7 @@ import { VersionInfo } from "@/components/layout/VersionInfo";
 import { StaffPinModal } from "@/components/shared/StaffPinModal";
 import { Smile } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addStamp, fetchStampCount } from "@/lib/stamps";
+import { addStamp, fetchStampCount, calculateStampDisplay } from "@/lib/stamps";
 import { fetchUserMemo, formatVisitDate } from "@/lib/memo";
 import { UserMemo } from "@/types/memo";
 
@@ -19,13 +19,16 @@ export default function AdultHome() {
   const [showStaffModal, setShowStaffModal] = useState(false);
   const [isStaffLoading, setIsStaffLoading] = useState(false);
   const [userMemo, setUserMemo] = useState<UserMemo | null>(null);
+  const [familyStampCount, setFamilyStampCount] = useState<number | null>(null);
+  const [familyId, setFamilyId] = useState<string | null>(null);
+  const [realName, setRealName] = useState<string | null>(null);
 
   // Supabaseからユーザーデータを取得
   const fetchUserData = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("stamp_count, updated_at, ticket_number")
+        .select("stamp_count, updated_at, ticket_number, family_id, real_name")
         .eq("id", userId)
         .single();
 
@@ -38,11 +41,34 @@ export default function AdultHome() {
         setStampCount(data.stamp_count ?? 0);
         setLastUpdated(data.updated_at);
         setTicketNumber(data.ticket_number);
+        setFamilyId(data.family_id);
+        setRealName(data.real_name);
         console.log("✅ ユーザーデータを取得しました:", {
           stampCount: data.stamp_count,
           updatedAt: data.updated_at,
           ticketNumber: data.ticket_number,
+          familyId: data.family_id,
+          realName: data.real_name,
         });
+
+        // 家族に所属している場合、家族全体のスタンプ数を取得
+        if (data.family_id) {
+          const { data: familyData, error: familyError } = await supabase
+            .from("family_stamp_totals")
+            .select("total_stamp_count")
+            .eq("family_id", data.family_id)
+            .single();
+
+          if (!familyError && familyData) {
+            setFamilyStampCount(familyData.total_stamp_count ?? 0);
+            console.log("✅ 家族スタンプ数を取得しました:", familyData.total_stamp_count);
+          } else {
+            console.log("⚠️  家族スタンプ数の取得に失敗:", familyError);
+            setFamilyStampCount(null);
+          }
+        } else {
+          setFamilyStampCount(null);
+        }
       }
 
       // 次回メモを取得
@@ -182,8 +208,9 @@ export default function AdultHome() {
         setStampCount(result.stampCount);
         console.log("✅ スタッフによりスタンプ数を変更しました:", result);
         setShowStaffModal(false);
+        const { fullStamps: updatedStamps } = calculateStampDisplay(result.stampCount);
         alert(
-          `スタンプ数を更新しました！\n現在 ${result.stampCount} / ${stubStampGoal}個`
+          `スタンプ数を更新しました！\n現在 ${updatedStamps} / ${stubStampGoal}個`
         );
         // 最新データを再取得
         await fetchUserData(profile.userId);
@@ -200,9 +227,12 @@ export default function AdultHome() {
   };
 
   // 表示用データ
-  const displayName = profile?.displayName ?? "ゲスト";
+  const displayName = realName || (profile?.displayName ?? "ゲスト");
   const displayTicketNumber = ticketNumber ?? "未登録";
   const stubStampGoal = 10;
+
+  // 10倍整数システム対応のスタンプ表示
+  const { fullStamps, progress } = calculateStampDisplay(stampCount);
 
   // 次回メモの表示内容を生成
   const renderMemoMessage = () => {
@@ -276,6 +306,11 @@ export default function AdultHome() {
         </h2>
         <div className="space-y-3">
           <p className="text-2xl font-semibold text-gray-800">{displayName}</p>
+          {realName && realName !== profile?.displayName && (
+            <p className="text-xs text-gray-400">
+              LINE表示名: {profile?.displayName}
+            </p>
+          )}
           <p className="font-mono text-sm text-gray-600">
             診察券番号: {displayTicketNumber}
           </p>
@@ -330,7 +365,8 @@ export default function AdultHome() {
               if (result.success) {
                 setStampCount(result.stampCount || stampCount + 1);
                 console.log("✅ スタンプを付与しました:", result);
-                alert(`スタンプを取得しました！\n現在 ${result.stampCount} / ${stubStampGoal}個`);
+                const { fullStamps: updatedStamps } = calculateStampDisplay(result.stampCount || stampCount + 1);
+                alert(`スタンプを取得しました！\n現在 ${updatedStamps} / ${stubStampGoal}個`);
                 // 最新データを再取得
                 await fetchUserData(profile.userId);
               } else {
@@ -353,24 +389,65 @@ export default function AdultHome() {
         <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-gray-400">
           現在のスタンプ進捗
         </h2>
-        <div className="space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">通院スタンプ</span>
-            <span className="font-semibold text-gray-800">
-              {stampCount} / {stubStampGoal}
-            </span>
+        <div className="space-y-4">
+          {/* 個人のスタンプ数 */}
+          <div className="space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">あなたの通院スタンプ</span>
+              <span className="font-semibold text-gray-800">
+                {fullStamps} / {stubStampGoal}
+              </span>
+            </div>
+            <div className="h-3 overflow-hidden rounded-full bg-gray-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-primary to-primary-dark transition-all"
+                style={{
+                  width: `${Math.min(100, (fullStamps / stubStampGoal) * 100)}%`,
+                }}
+              />
+            </div>
+            {progress > 0 && (
+              <div className="rounded-lg bg-sky-50 p-2.5">
+                <p className="text-xs text-sky-700 font-medium">
+                  次のスタンプまで: {progress}%
+                </p>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-sky-100">
+                  <div
+                    className="h-full rounded-full bg-sky-400 transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-gray-500">
+              あと{Math.max(0, stubStampGoal - fullStamps)}回でごほうび交換可能です
+            </p>
           </div>
-          <div className="h-3 overflow-hidden rounded-full bg-gray-100">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-primary to-primary-dark transition-all"
-              style={{
-                width: `${Math.min(100, (stampCount / stubStampGoal) * 100)}%`,
-              }}
-            />
-          </div>
-          <p className="text-xs text-gray-500">
-            あと{stubStampGoal - stampCount}回でごほうび交換可能です
-          </p>
+
+          {/* 家族全体のスタンプ数（家族に所属している場合のみ表示） */}
+          {familyId && familyStampCount !== null && (
+            <>
+              <div className="border-t border-gray-100 pt-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">家族全体の通院スタンプ</span>
+                  <span className="font-semibold text-purple-600">
+                    {calculateStampDisplay(familyStampCount).fullStamps} / {stubStampGoal}
+                  </span>
+                </div>
+                <div className="mt-3 h-3 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-600 transition-all"
+                    style={{
+                      width: `${Math.min(100, (calculateStampDisplay(familyStampCount).fullStamps / stubStampGoal) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  家族みんなで協力してスタンプを貯めよう！
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </section>
 

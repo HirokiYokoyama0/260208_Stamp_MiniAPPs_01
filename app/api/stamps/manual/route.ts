@@ -120,10 +120,11 @@ export async function POST(
     const now = new Date();
     const manualQrCodeId = `MANUAL-ADJUST-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
 
+    const changeAmount = newStampCount - currentStampCount;
     const changeDescription =
-      newStampCount > currentStampCount
-        ? `スタッフ操作: +${newStampCount - currentStampCount}個 (${currentStampCount} → ${newStampCount})`
-        : `スタッフ操作: ${newStampCount - currentStampCount}個 (${currentStampCount} → ${newStampCount})`;
+      changeAmount > 0
+        ? `スタッフ操作: +${changeAmount}個 (${currentStampCount} → ${newStampCount})`
+        : `スタッフ操作: ${changeAmount}個 (${currentStampCount} → ${newStampCount})`;
 
     await supabase.from("stamp_history").insert({
       user_id: userId,
@@ -131,6 +132,7 @@ export async function POST(
       stamp_number: newStampCount,
       stamp_method: "manual_admin",
       qr_code_id: manualQrCodeId,
+      amount: changeAmount, // 変更量を記録
       notes: changeDescription,
     });
 
