@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, User, CreditCard, Save } from 'lucide-react';
+import { ArrowLeft, User, CreditCard, Save, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useViewMode } from '@/contexts/ViewModeContext';
 
 export default function ChildModeSettingsPage() {
   const router = useRouter();
+  const { setSelectedChildId, setViewMode } = useViewMode();
   const [childId, setChildId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [ticketNumber, setTicketNumber] = useState('');
@@ -89,6 +91,13 @@ export default function ChildModeSettingsPage() {
   // 戻るボタン
   const handleBack = () => {
     router.push('/');
+  };
+
+  // 親のモードに戻る
+  const handleBackToParentMode = async () => {
+    setSelectedChildId(null); // selectedChildIdをクリア
+    await setViewMode('adult'); // 大人用モードに切り替え
+    router.push('/'); // ホーム画面にリダイレクト
   };
 
   if (isLoading) {
@@ -191,6 +200,20 @@ export default function ChildModeSettingsPage() {
           <p className="text-sm text-gray-700 text-center">
             💡 なまえ と しんさつけんばんごう を<br />
             にゅうりょく して ほぞん してね！
+          </p>
+        </div>
+
+        {/* 親のモードに戻るボタン */}
+        <div className="pt-4 border-t-2 border-white/30">
+          <button
+            onClick={handleBackToParentMode}
+            className="w-full bg-white/80 hover:bg-white text-gray-700 font-bold text-base py-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all flex items-center justify-center gap-2 border-2 border-gray-300"
+          >
+            <LogOut size={20} />
+            <span>おやの モード に もどる</span>
+          </button>
+          <p className="text-xs text-white/80 text-center mt-2">
+            ※ おやが まちがえて きっずもーど に なった ときに つかってね
           </p>
         </div>
       </div>
