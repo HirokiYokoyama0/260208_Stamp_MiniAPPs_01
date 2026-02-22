@@ -77,7 +77,7 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
           console.log(`[KidsHome] selectedChildIdでプロフィール取得: ${selectedChildId}`);
           const { data, error } = await supabase
             .from("profiles")
-            .select("stamp_count, display_name, ticket_number, next_visit_date, next_memo, family_id")
+            .select("stamp_count, display_name, real_name, ticket_number, next_visit_date, next_memo, family_id")
             .eq("id", selectedChildId)
             .single();
 
@@ -98,7 +98,7 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
             });
 
             setStampCount(data.stamp_count ?? 0);
-            setDisplayName(data.display_name || "おともだち");
+            setDisplayName(data.real_name || data.display_name || "おともだち");
             setTicketNumber(data.ticket_number);
             setFamilyId(data.family_id);
 

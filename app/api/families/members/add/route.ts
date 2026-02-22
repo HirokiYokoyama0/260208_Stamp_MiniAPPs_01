@@ -61,7 +61,8 @@ export async function POST(request: NextRequest) {
       .insert({
         id: virtualChildId,
         line_user_id: null, // 仮想メンバーはLINEアカウントなし
-        display_name: childName,
+        display_name: childName, // 表示名（検索用・互換性用）
+        real_name: childName,    // 本名（実際の名前を保存）
         ticket_number: ticketNumber || null,
         stamp_count: 0,
         visit_count: 0,

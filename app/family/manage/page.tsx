@@ -12,6 +12,7 @@ import AddChildDialog from '@/components/AddChildDialog';
 interface FamilyMember {
   id: string;
   display_name: string;
+  real_name: string | null;
   family_role: 'parent' | 'child';
   stamp_count: number;
   visit_count: number;
@@ -309,9 +310,11 @@ export default function FamilyManagePage() {
         {/* 招待コード（親のみ表示） */}
         {isParent && (
           <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-gray-800 mb-3">招待コード</h3>
-            <p className="text-sm text-gray-600 mb-2">
-              お子様に以下のコードを共有してください
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="font-semibold text-gray-800">📱 お子様のスマホから参加</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">
+              お子様が自分のLINEアカウントを持っている場合、このコードを共有してください
             </p>
             <div className="flex gap-2">
               <code className="flex-1 bg-gray-100 px-3 py-2 rounded border border-gray-300 text-sm font-mono overflow-x-auto">
@@ -352,9 +355,10 @@ export default function FamilyManagePage() {
               <button
                 onClick={() => setIsAddChildDialogOpen(true)}
                 className="flex items-center gap-2 text-primary hover:text-primary-dark text-sm font-medium transition-colors"
+                title="スマホを持っていない小さなお子様を追加"
               >
                 <UserPlus size={18} />
-                子供を追加
+                👶 スマホなしの子供を追加
               </button>
             )}
           </div>
@@ -377,7 +381,7 @@ export default function FamilyManagePage() {
                         <label className="block text-xs text-gray-600 mb-1">名前</label>
                         <input
                           type="text"
-                          defaultValue={member.display_name}
+                          defaultValue={member.real_name || member.display_name}
                           id={`edit-name-${member.id}`}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                         />
@@ -417,7 +421,7 @@ export default function FamilyManagePage() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold text-gray-800">{member.display_name}</p>
+                          <p className="font-semibold text-gray-800">{member.real_name || member.display_name}</p>
                           {member.family_role === 'parent' && (
                             <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded font-medium">
                               代表者
@@ -464,7 +468,7 @@ export default function FamilyManagePage() {
                           )}
                           {/* 削除ボタン */}
                           <button
-                            onClick={() => handleRemoveMember(member.id, member.display_name)}
+                            onClick={() => handleRemoveMember(member.id, member.real_name || member.display_name)}
                             disabled={isLoading}
                             className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                           >

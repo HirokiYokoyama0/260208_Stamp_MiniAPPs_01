@@ -55,7 +55,7 @@ export default function AddChildDialog({ isOpen, onClose, onSave }: AddChildDial
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         {/* ヘッダー */}
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-800">子供を追加</h2>
+          <h2 className="text-lg font-semibold text-gray-800">👶 スマホなしの子供を追加</h2>
           <button
             onClick={handleClose}
             disabled={isLoading}
@@ -63,6 +63,13 @@ export default function AddChildDialog({ isOpen, onClose, onSave }: AddChildDial
           >
             <X size={24} />
           </button>
+        </div>
+
+        {/* 説明文 */}
+        <div className="mb-4 rounded-lg bg-blue-50 p-3">
+          <p className="text-sm text-gray-700">
+            スマホやLINEアカウントを持っていない小さなお子様を登録します。親が代わりに管理できます。
+          </p>
         </div>
 
         {/* エラーメッセージ */}

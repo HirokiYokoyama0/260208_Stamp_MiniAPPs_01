@@ -72,7 +72,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // メンバー一覧を取得
     const { data: members, error: membersError } = await supabase
       .from("profiles")
-      .select("id, display_name, family_role, stamp_count, visit_count, line_user_id, ticket_number")
+      .select("id, display_name, real_name, family_role, stamp_count, visit_count, line_user_id, ticket_number")
       .eq("family_id", profile.family_id);
 
     if (membersError) {

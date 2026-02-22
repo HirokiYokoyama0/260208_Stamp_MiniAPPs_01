@@ -12,26 +12,64 @@ import {
   Settings,
 } from "lucide-react";
 import { useLiff } from "@/hooks/useLiff";
-import { ViewModeProvider } from "@/contexts/ViewModeContext";
+import { ViewModeProvider, useViewMode } from "@/contexts/ViewModeContext";
 import FriendshipPromptModal from "@/components/features/FriendshipPromptModal";
 import KidsSlotButton from "@/components/shared/KidsSlotButton";
 
 const TABS = [
-  { href: "/", label: "診察券", icon: CreditCard },
-  { href: "/stamp", label: "スタンプ", icon: Stamp },
-  { href: "/rewards", label: "特典", icon: Gift },
-  { href: "/care", label: "ケア記録", icon: ClipboardCheck },
-  { href: "/info", label: "医院情報", icon: Building2 },
-  { href: "/settings", label: "設定", icon: Settings },
+  { href: "/", label: "診察券", icon: CreditCard, kidsHref: undefined },
+  { href: "/stamp", label: "スタンプ", icon: Stamp, kidsHref: undefined },
+  { href: "/rewards", label: "特典", icon: Gift, kidsHref: undefined },
+  { href: "/care", label: "ケア記録", icon: ClipboardCheck, kidsHref: undefined },
+  { href: "/info", label: "医院情報", icon: Building2, kidsHref: undefined },
+  { href: "/settings", label: "設定", icon: Settings, kidsHref: "/child-mode/settings" },
 ] as const;
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-export function AppLayout({ children }: AppLayoutProps) {
+// ボトムナビゲーションコンポーネント（ViewMode対応）
+function BottomNavigation() {
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState(pathname);
+  const { viewMode, selectedChildId } = useViewMode();
+  const isKidsMode = viewMode === 'kids' && selectedChildId !== null;
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-100 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+      <div className="flex items-center justify-around px-1 py-2">
+        {TABS.map(({ href, label, icon: Icon, kidsHref }) => {
+          // 子供モードかつkidsHrefが設定されている場合は専用リンクを使用
+          const actualHref = isKidsMode && kidsHref ? kidsHref : href;
+          const isActive = pathname === actualHref || (actualHref !== "/" && pathname.startsWith(actualHref));
+
+          return (
+            <Link
+              key={href}
+              href={actualHref}
+              onClick={() => setActiveTab(actualHref)}
+              className={`flex flex-1 flex-col items-center gap-1 px-2 py-2 transition-colors ${
+                isActive
+                  ? "text-primary-dark"
+                  : "text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              <Icon
+                size={20}
+                strokeWidth={isActive ? 2.5 : 1.8}
+                className={isActive ? "text-primary" : ""}
+              />
+              <span className="text-[10px] font-medium leading-tight">{label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+export function AppLayout({ children }: AppLayoutProps) {
   const { isLoggedIn, isLoading, isFriend } = useLiff();
   const [showFriendshipModal, setShowFriendshipModal] = useState(false);
   const [hasShownModal, setHasShownModal] = useState(false);
@@ -103,32 +141,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <KidsSlotButton />
 
         {/* ボトムナビゲーション */}
-        <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-100 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-          <div className="flex items-center justify-around px-1 py-2">
-            {TABS.map(({ href, label, icon: Icon }) => {
-              const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setActiveTab(href)}
-                  className={`flex flex-1 flex-col items-center gap-1 px-2 py-2 transition-colors ${
-                    isActive
-                      ? "text-primary-dark"
-                      : "text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  <Icon
-                    size={20}
-                    strokeWidth={isActive ? 2.5 : 1.8}
-                    className={isActive ? "text-primary" : ""}
-                  />
-                  <span className="text-[10px] font-medium leading-tight">{label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
+        <BottomNavigation />
       </div>
     </ViewModeProvider>
   );

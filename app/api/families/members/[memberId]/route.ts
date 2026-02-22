@@ -75,7 +75,8 @@ export async function PATCH(
     // 4. 更新データを準備
     const updateData: any = {};
     if (childName !== undefined) {
-      updateData.display_name = childName;
+      updateData.display_name = childName; // 検索用・互換性用
+      updateData.real_name = childName;    // 本名（実際の名前）
     }
     if (ticketNumber !== undefined) {
       updateData.ticket_number = ticketNumber;
