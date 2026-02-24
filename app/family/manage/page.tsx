@@ -8,6 +8,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { calculateStampDisplay } from '@/lib/stamps';
 import AddChildDialog from '@/components/AddChildDialog';
+import {
+  logFamilyManageOpen,
+  logFamilyMemberAdd,
+  logFamilyMemberEdit,
+  logFamilyMemberDelete,
+  logChildModeEnter,
+} from '@/lib/analytics';
 
 interface FamilyMember {
   id: string;
@@ -46,6 +53,11 @@ export default function FamilyManagePage() {
   useEffect(() => {
     if (profile?.userId) {
       fetchFamily();
+      // 家族管理画面を開いたログ
+      logFamilyManageOpen({
+        userId: profile.userId,
+        familyId: family?.id,
+      });
     }
   }, [profile]);
 
@@ -121,6 +133,14 @@ export default function FamilyManagePage() {
         throw new Error(data.error || '子供の追加に失敗しました');
       }
 
+      // イベントログ記録
+      await logFamilyMemberAdd({
+        userId: profile.userId,
+        familyId: family?.id,
+        memberName: childName,
+        memberType: 'child',
+      });
+
       // 家族情報を再取得
       await fetchFamily();
     } catch (err) {
@@ -150,6 +170,14 @@ export default function FamilyManagePage() {
         throw new Error(data.error || 'メンバー情報の更新に失敗しました');
       }
 
+      // イベントログ記録
+      await logFamilyMemberEdit({
+        userId: profile.userId,
+        familyId: family?.id,
+        memberId: memberId,
+        memberName: childName,
+      });
+
       setEditingMember(null);
       await fetchFamily();
     } catch (err) {
@@ -176,6 +204,14 @@ export default function FamilyManagePage() {
         throw new Error(data.error || 'メンバーの削除に失敗しました');
       }
 
+      // イベントログ記録
+      await logFamilyMemberDelete({
+        userId: profile.userId,
+        familyId: family?.id,
+        memberId: memberId,
+        memberName: memberName,
+      });
+
       await fetchFamily();
     } catch (err) {
       console.error('メンバー削除エラー:', err);
@@ -187,6 +223,19 @@ export default function FamilyManagePage() {
 
   const handleOpenChildMode = async (memberId: string) => {
     console.log('[FamilyManage] 子供の画面に切り替え:', memberId);
+
+    // 子供の情報を取得
+    const childMember = family?.members.find(m => m.id === memberId);
+    const childName = childMember?.real_name || childMember?.display_name || '不明';
+
+    // イベントログ記録
+    if (profile?.userId) {
+      await logChildModeEnter({
+        userId: profile.userId,
+        childId: memberId,
+        childName: childName,
+      });
+    }
 
     // ViewModeContextに子供のIDを保存
     setSelectedChildId(memberId);

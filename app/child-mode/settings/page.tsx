@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, User, CreditCard, Save, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useViewMode } from '@/contexts/ViewModeContext';
+import { useLiff } from '@/hooks/useLiff';
+import { logChildModeExit } from '@/lib/analytics';
 
 export default function ChildModeSettingsPage() {
   const router = useRouter();
+  const { profile } = useLiff();
   const { selectedChildId, setSelectedChildId, setViewMode } = useViewMode();
   const [displayName, setDisplayName] = useState('');
   const [ticketNumber, setTicketNumber] = useState('');
@@ -15,6 +18,7 @@ export default function ChildModeSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [childModeStartTime] = useState(Date.now()); // 子供モード開始時刻を記録
 
   // 子供のプロフィール情報を取得
   useEffect(() => {
@@ -93,6 +97,19 @@ export default function ChildModeSettingsPage() {
 
   // 親のモードに戻る
   const handleBackToParentMode = async () => {
+    // 子供モードの滞在時間を計算
+    const durationSeconds = Math.floor((Date.now() - childModeStartTime) / 1000);
+
+    // イベントログ記録
+    if (profile?.userId && selectedChildId) {
+      await logChildModeExit({
+        userId: profile.userId,
+        childId: selectedChildId,
+        childName: displayName || '不明',
+        durationSeconds: durationSeconds,
+      });
+    }
+
     setSelectedChildId(null); // selectedChildIdをクリア
     await setViewMode('adult'); // 大人用モードに切り替え
     router.push('/'); // ホーム画面にリダイレクト

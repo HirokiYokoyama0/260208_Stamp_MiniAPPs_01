@@ -6,6 +6,7 @@ import { Baby, Users, Heart, CheckCircle2, ExternalLink, User, Edit3 } from 'luc
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { logChildModeEnter } from '@/lib/analytics';
 
 const OFFICIAL_ACCOUNT_URL = "https://line.me/R/ti/p/@550mlcao";
 
@@ -89,6 +90,19 @@ export default function SettingsPage() {
 
   const handleSwitchToChild = async (childId: string) => {
     console.log('[Settings] 子供の画面に切り替え:', childId);
+
+    // 子供の情報を取得
+    const child = proxyChildren.find(c => c.id === childId);
+    const childName = child?.real_name || child?.display_name || '不明';
+
+    // イベントログ記録
+    if (profile?.userId) {
+      await logChildModeEnter({
+        userId: profile.userId,
+        childId: childId,
+        childName: childName,
+      });
+    }
 
     // Contextとローカルストレージに selectedChildId を保存
     setSelectedChildId(childId);

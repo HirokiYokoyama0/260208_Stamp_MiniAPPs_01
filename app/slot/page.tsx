@@ -4,6 +4,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useLiff } from "@/hooks/useLiff";
+import { logSlotGamePlay, logEvent } from "@/lib/analytics";
 
 // 歯科テーマの絵文字リール（色・形がすべて異なる7種）
 // 🦷白/歯  🪥多色/ブラシ  🍎赤/丸  ⭐黄/星  💎青/菱  🌸桃/花  🍀緑/葉
@@ -86,6 +88,7 @@ function SlotReel({
 }
 
 export default function SlotPage() {
+  const { profile } = useLiff();
   const [spinning, setSpinning] = useState(false);
   const [stoppedReels, setStoppedReels] = useState<(string | null)[]>([
     null,
@@ -99,6 +102,14 @@ export default function SlotPage() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [spinKey, setSpinKey] = useState(0);
 
+  // ページ読み込み時にログ
+  useEffect(() => {
+    logEvent({
+      eventName: 'slot_game_open',
+      userId: profile?.userId,
+    });
+  }, [profile?.userId]);
+
   // 全リール停止時に結果判定
   const checkResult = useCallback((reels: (string | null)[]) => {
     if (reels.some((r) => r === null)) return;
@@ -108,11 +119,30 @@ export default function SlotPage() {
       setResult(win);
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 3000);
+      // 当たりログ
+      logSlotGamePlay({
+        result: 'win',
+        stampsWon: win.label.includes('だいあたり') ? 8 : 5,
+        userId: profile?.userId,
+      });
     } else if (reels[0] === reels[1] || reels[1] === reels[2]) {
       setResult({ label: "おしい！", message: "もうちょっとだよ！" });
+      // 外れログ
+      logSlotGamePlay({
+        result: 'lose',
+        stampsWon: 0,
+        userId: profile?.userId,
+      });
+    } else {
+      // 完全に外れた場合もログ
+      logSlotGamePlay({
+        result: 'lose',
+        stampsWon: 0,
+        userId: profile?.userId,
+      });
     }
     setSpinning(false);
-  }, []);
+  }, [profile?.userId]);
 
   const handleStop = useCallback(
     (index: number, symbol: string) => {

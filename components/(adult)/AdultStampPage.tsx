@@ -13,6 +13,7 @@ import {
   calculateStampDisplay,
 } from "@/lib/stamps";
 import { StampHistoryRecord } from "@/types/stamp";
+import { logEvent } from "@/lib/analytics";
 
 const STAMP_GOAL = 10; // ごほうび交換に必要なスタンプ数
 
@@ -52,6 +53,18 @@ export default function AdultStampPage() {
       fetchHistory();
     }
   }, [isLoggedIn, profile]);
+
+  // スタンプ数が取得できたらログ送信（初回のみ）
+  useEffect(() => {
+    if (isLoggedIn && profile && !isLoading) {
+      logEvent({
+        eventName: 'stamp_page_view',
+        userId: profile.userId,
+        metadata: { current_stamp_count: stampCount },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]); // isLoadingがfalseになったら実行（初回のみ）
 
   // QRスキャン時の処理
   const handleStampScan = async (qrValue: string) => {
@@ -179,6 +192,11 @@ export default function AdultStampPage() {
                       {visitNumber}回目の来院
                       {record.stamp_method === 'manual_admin' && (
                         <span className="ml-2 text-xs text-gray-500">(スタッフ編集)</span>
+                      )}
+                      {record.stamp_method === 'qr_scan' && record.amount && (
+                        <span className="ml-2 text-xs font-medium text-primary">
+                          QRコード {record.amount}個獲得
+                        </span>
                       )}
                     </p>
                     <p className="text-xs text-gray-500">

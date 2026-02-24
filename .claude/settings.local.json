@@ -25,7 +25,10 @@
       "Bash(npx tsc --noEmit)",
       "Bash(cmd /c \"taskkill /PID 8300 /F\")",
       "Bash(cmd /c \"taskkill /PID 3500 /F\")",
-      "Bash(cat .gitignore)"
+      "Bash(cat .gitignore)",
+      "Bash(npm install html5-qrcode)",
+      "Bash(echo \"通常患者用QRコードのペイロードを確認してください。期待値: {\"\"type\"\":\"\"regular\"\",\"\"points\"\":5}\")",
+      "Bash(cat .env.local)"
     ],
     "deny": [],
     "ask": []

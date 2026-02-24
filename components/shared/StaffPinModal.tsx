@@ -9,6 +9,7 @@ interface StaffPinModalProps {
   currentStampCount: number; // 現在のスタンプ数
   onSubmit: (pin: string, newCount: number) => Promise<void>;
   isLoading?: boolean;
+  userId?: string; // QRスキャン削除用のユーザーID
 }
 
 type Step = "auth" | "edit";
@@ -22,11 +23,13 @@ export function StaffPinModal({
   currentStampCount,
   onSubmit,
   isLoading = false,
+  userId,
 }: StaffPinModalProps) {
   const [step, setStep] = useState<Step>("auth");
   const [pin, setPin] = useState("");
   const [newStampCount, setNewStampCount] = useState(currentStampCount);
   const [error, setError] = useState("");
+  const [isDeletingQR, setIsDeletingQR] = useState(false);
 
   // モーダルが開いたときにスタンプ数を初期化
   useEffect(() => {
@@ -76,6 +79,42 @@ export function StaffPinModal({
 
   const decrementCount = () => {
     setNewStampCount((prev) => Math.max(prev - 1, 0)); // 最小0個
+  };
+
+  // 本日のQRスキャン削除
+  const handleDeleteTodayQR = async () => {
+    if (!userId) {
+      alert("ユーザーIDが不足しています");
+      return;
+    }
+
+    if (!confirm("本日のQRスキャン履歴を削除しますか？\nこの操作は元に戻せません。")) {
+      return;
+    }
+
+    setIsDeletingQR(true);
+    try {
+      const response = await fetch("/api/stamps/scan/delete-today", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(result.message);
+        handleClose(); // モーダルを閉じる
+        window.location.reload(); // ページをリロードして最新データを表示
+      } else {
+        alert(result.message || "削除に失敗しました");
+      }
+    } catch (error) {
+      console.error("❌ QRスキャン削除エラー:", error);
+      alert("エラーが発生しました");
+    } finally {
+      setIsDeletingQR(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -194,21 +233,34 @@ export function StaffPinModal({
               </p>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleClose}
-                disabled={isLoading}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleUpdate}
-                disabled={isLoading}
-                className="flex-1 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isLoading ? "処理中..." : "更新"}
-              </button>
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleClose}
+                  disabled={isLoading || isDeletingQR}
+                  className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={handleUpdate}
+                  disabled={isLoading || isDeletingQR}
+                  className="flex-1 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isLoading ? "処理中..." : "更新"}
+                </button>
+              </div>
+
+              {/* 本日のQRスキャン削除ボタン */}
+              {userId && (
+                <button
+                  onClick={handleDeleteTodayQR}
+                  disabled={isLoading || isDeletingQR}
+                  className="w-full rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isDeletingQR ? "削除中..." : "🗑️ 本日のQRスキャンを削除"}
+                </button>
+              )}
             </div>
           </>
         )}

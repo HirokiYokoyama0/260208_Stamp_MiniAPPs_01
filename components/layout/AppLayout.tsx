@@ -15,6 +15,7 @@ import { useLiff } from "@/hooks/useLiff";
 import { ViewModeProvider, useViewMode } from "@/contexts/ViewModeContext";
 import FriendshipPromptModal from "@/components/features/FriendshipPromptModal";
 import KidsSlotButton from "@/components/shared/KidsSlotButton";
+import { logAppOpen } from "@/lib/analytics";
 
 const TABS = [
   { href: "/", label: "診察券", icon: CreditCard, kidsHref: undefined },
@@ -70,9 +71,16 @@ function BottomNavigation() {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { isLoggedIn, isLoading, isFriend } = useLiff();
+  const { isLoggedIn, isLoading, isFriend, profile } = useLiff();
   const [showFriendshipModal, setShowFriendshipModal] = useState(false);
   const [hasShownModal, setHasShownModal] = useState(false);
+
+  // アプリ起動ログ
+  useEffect(() => {
+    if (isLoggedIn && profile) {
+      logAppOpen({ userId: profile.userId });
+    }
+  }, [isLoggedIn, profile]);
 
   // 初回起動時に友だち登録を促進
   useEffect(() => {

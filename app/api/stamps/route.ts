@@ -98,7 +98,19 @@ export async function POST(
     }
 
     const currentStampCount = profileData?.stamp_count ?? 0;
-    const stampAmount = STAMP_AMOUNTS.REGULAR_VISIT; // 通常来院: +10個
+
+    // QRコードからスタンプ数を解析
+    let stampAmount = STAMP_AMOUNTS.REGULAR_VISIT; // デフォルト: +10個
+    try {
+      const qrPayload = JSON.parse(qrCodeId);
+      if (qrPayload.stamps && typeof qrPayload.stamps === 'number') {
+        stampAmount = qrPayload.stamps; // QRコードの stamps 値を使用
+        console.log(`📱 [Stamps API] QRコードから読み取り: ${stampAmount}個`);
+      }
+    } catch {
+      // JSONパースエラー = 通常のQRコードID、デフォルト値を使用
+    }
+
     const nextStampNumber = currentStampCount + stampAmount;
 
     // stamp_historyに新規レコードを挿入

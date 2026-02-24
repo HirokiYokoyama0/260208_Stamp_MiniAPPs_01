@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { addStamp, fetchStampCount, calculateStampDisplay } from "@/lib/stamps";
 import { fetchUserMemo, formatVisitDate } from "@/lib/memo";
 import { UserMemo } from "@/types/memo";
+import { logReservationClick, logEvent } from "@/lib/analytics";
 
 export default function AdultHome() {
   const { isInitialized, isLoggedIn, isLoading, profile, login } = useLiff();
@@ -163,6 +164,13 @@ export default function AdultHome() {
           // エラーでもユーザー体験は妨げない
           console.error("⚠️ クリックカウントエラー:", error);
         });
+
+      // 🆕 イベントログも記録
+      logReservationClick({
+        fromPage: '/',
+        currentStampCount: stampCount,
+        userId: profile.userId,
+      });
     } else {
       console.warn("⚠️ [DEBUG] profile.userId が存在しません", { profile });
     }
@@ -461,6 +469,7 @@ export default function AdultHome() {
         currentStampCount={stampCount}
         onSubmit={handleStaffSubmit}
         isLoading={isStaffLoading}
+        userId={profile?.userId}
       />
     </div>
   );
