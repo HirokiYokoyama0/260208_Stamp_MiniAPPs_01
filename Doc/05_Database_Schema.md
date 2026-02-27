@@ -20,11 +20,14 @@
 | [families](#3-families-テーブル) | 家族グループ（Phase 2） | 009_add_family_support.sql |
 | [rewards](#4-rewards-テーブル) | 特典マスター | 003_create_rewards_tables.sql |
 | [reward_exchanges](#5-reward_exchanges-テーブル) | 特典交換履歴 | 003_create_rewards_tables.sql |
+| [event_logs](#6-event_logs-テーブル) | イベントログ（ユーザー行動分析用、Phase 2.7） | 015_create_event_logs_table_ForUser.sql |
 
 **ビュー:**
 | ビュー名 | 説明 | マイグレーションファイル |
 |---------|------|------------------------|
-| [family_stamp_totals](#6-family_stamp_totals-ビュー) | 家族ごとのスタンプ合計 | 009_add_family_support.sql |
+| [family_stamp_totals](#7-family_stamp_totals-ビュー) | 家族ごとのスタンプ合計 | 009_add_family_support.sql |
+| [daily_active_users](#8-daily_active_users-ビュー) | 日別アクティブユーザー数（DAU） | 015_create_event_logs_table_ForUser.sql |
+| [event_summary](#9-event_summary-ビュー) | イベント別集計（直近30日） | 015_create_event_logs_table_ForUser.sql |
 
 ---
 
@@ -178,7 +181,7 @@
 | `visit_date` | TIMESTAMPTZ | NO | - | 実際の来院日時 |
 | `stamp_number` | INTEGER | NO | - | **付与後の累積ポイント** |
 | `amount` | INTEGER | NO | 10 | **今回付与したポイント**（通常来院=10点、スロット=3点〜8点） |
-| `stamp_method` | TEXT | NO | 'qr_scan' | 取得方式 ('qr_scan', 'manual_admin', 'import') |
+| `stamp_method` | TEXT | NO | 'qr_scan' | 取得方式 ('qr_scan', 'manual_admin', 'import', 'survey_reward') |
 | `qr_code_id` | TEXT | YES | - | QRコードの一意識別子（重複防止用） |
 | `notes` | TEXT | YES | - | 管理者による備考（オプション） |
 | `created_at` | TIMESTAMPTZ | NO | NOW() | レコード作成日時 |
@@ -337,7 +340,56 @@
 
 ---
 
-### 6. `family_stamp_totals` ビュー
+### 6. `event_logs` テーブル
+
+**説明:** ユーザー行動ログ（マーケティング分析・効果測定用、Phase 2.7で追加）
+
+**作成:** `015_create_event_logs_table_ForUser.sql`
+
+| カラム名 | 型 | NULL許可 | デフォルト | 説明 |
+|---------|---|---------|----------|------|
+| `id` | UUID | NO | gen_random_uuid() | **主キー**: ログの一意識別子 |
+| `user_id` | TEXT | YES | - | **外部キー**: profiles.id へのリンク |
+| `event_name` | TEXT | NO | - | イベント種別（'app_open', 'stamp_scan_success' など） |
+| `source` | TEXT | YES | - | 流入元（'line_msg_0223', 'direct' など） |
+| `metadata` | JSONB | YES | - | 追加データ（JSON形式、自由枠） |
+| `created_at` | TIMESTAMPTZ | NO | NOW() | イベント発生日時 |
+
+**インデックス:**
+- `idx_event_logs_user_id` - ユーザーごとの検索用
+- `idx_event_logs_event_name` - イベント種別検索用
+- `idx_event_logs_created_at` - 日時範囲検索用
+- `idx_event_logs_source` - 流入元検索用（部分インデックス）
+- `idx_event_logs_user_event` - ユーザー + イベント種別の複合インデックス
+- `idx_event_logs_event_created` - イベント種別 + 日時の複合インデックス
+
+**制約:**
+- PRIMARY KEY: `id`
+- FOREIGN KEY: `user_id` → `profiles(id)` ON DELETE CASCADE
+
+**RLS (Row Level Security):**
+- ✅ 有効
+- ポリシー: `Users can insert their own logs`, `Service role can view all logs`, `Users can view their own logs`
+
+**データ保持期間:**
+- 400日（約13ヶ月）
+- 前年同期比較が可能
+- 関数 `delete_old_event_logs()` で古いログを自動削除可能
+
+**記録されるイベント例:**
+- `app_open`: アプリ起動
+- `stamp_scan_success`: QRスキャン成功
+- `reservation_button_click`: 予約ボタンクリック
+- `family_member_add`: 家族メンバー追加
+- `child_mode_enter`: 子供モード開始
+
+**詳細:**
+- [Doc/83_イベントログ設計.md](83_イベントログ設計（ユーザの操作ログ）.md)
+- [Doc/84_イベントログ仕様_管理ダッシュボード開発者向け.md](84_イベントログ仕様_管理ダッシュボード開発者向け.md)
+
+---
+
+### 7. `family_stamp_totals` ビュー
 
 **説明:** 家族ごとのスタンプ合計・来院回数を集計（Phase 2で追加）
 
@@ -394,6 +446,75 @@ LIMIT 10;
 - 家族にメンバーが1人もいない場合、`total_stamp_count` は NULL
 - `member_count` は家族に紐付いている profiles の数
 - 表示時は `total_stamp_count ÷ 10` で実際のスタンプ数を計算
+
+---
+
+### 8. `daily_active_users` ビュー
+
+**説明:** 日別アクティブユーザー数（DAU）- Phase 2.7で追加
+
+**作成:** `015_create_event_logs_table_ForUser.sql`
+
+| カラム名 | 型 | 説明 |
+|---------|-----|------|
+| `date` | DATE | 日付 |
+| `active_users` | BIGINT | アクティブユーザー数 |
+
+**定義SQL:**
+```sql
+CREATE OR REPLACE VIEW daily_active_users AS
+SELECT
+  DATE(created_at) AS date,
+  COUNT(DISTINCT user_id) AS active_users
+FROM event_logs
+WHERE event_name = 'app_open'
+  AND created_at >= CURRENT_DATE - INTERVAL '400 days'
+GROUP BY DATE(created_at)
+ORDER BY date DESC;
+```
+
+**使用例:**
+```sql
+-- 直近30日のDAU
+SELECT * FROM daily_active_users LIMIT 30;
+```
+
+---
+
+### 9. `event_summary` ビュー
+
+**説明:** イベント別集計（直近30日）- Phase 2.7で追加
+
+**作成:** `015_create_event_logs_table_ForUser.sql`
+
+| カラム名 | 型 | 説明 |
+|---------|-----|------|
+| `event_name` | TEXT | イベント種別 |
+| `total_events` | BIGINT | 総イベント数 |
+| `unique_users` | BIGINT | ユニークユーザー数 |
+| `first_occurrence` | TIMESTAMPTZ | 初回発生日時 |
+| `last_occurrence` | TIMESTAMPTZ | 最終発生日時 |
+
+**定義SQL:**
+```sql
+CREATE OR REPLACE VIEW event_summary AS
+SELECT
+  event_name,
+  COUNT(*) AS total_events,
+  COUNT(DISTINCT user_id) AS unique_users,
+  MIN(created_at) AS first_occurrence,
+  MAX(created_at) AS last_occurrence
+FROM event_logs
+WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+GROUP BY event_name
+ORDER BY total_events DESC;
+```
+
+**使用例:**
+```sql
+-- 人気機能ランキング
+SELECT * FROM event_summary;
+```
 
 ---
 
@@ -478,7 +599,34 @@ LIMIT 10;
 
 ---
 
-### 6. `update_families_updated_at()`
+### 6. `delete_old_event_logs()`
+
+**説明:** 400日以上前のイベントログを削除（Phase 2.7で追加）
+
+**作成:** `015_create_event_logs_table_ForUser.sql`
+
+**呼び出し:** 定期実行（Edge Functions または外部cron）
+
+**処理内容:**
+```sql
+CREATE OR REPLACE FUNCTION delete_old_event_logs()
+RETURNS VOID AS $$
+BEGIN
+  DELETE FROM event_logs
+  WHERE created_at < CURRENT_DATE - INTERVAL '400 days';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+**データ保持期間を400日にした理由:**
+- 前年同期比較が可能（例: 去年の2月 vs 今年の2月）
+- 季節変動の年次比較
+- 年間を通じたトレンド分析
+- LINE配信キャンペーンの長期効果測定
+
+---
+
+### 7. `update_families_updated_at()`
 
 **説明:** families テーブルの updated_at を自動更新（Phase 2で追加）
 
@@ -705,6 +853,8 @@ ORDER BY total_stamp_count DESC;
 | 8 | `008_add_10x_system_columns.sql` | 10倍整数システム対応（visit_count, amount カラム追加） | Phase 1 |
 | 9 | `009_add_family_support.sql` | **家族機能追加**（families テーブル、family_id/family_role カラム、family_stamp_totals ビュー） | **Phase 2** |
 | 10 | `009_fix_rls_policies.sql` | RLSポリシー修正（auth.uid() 削除） | Phase 2 |
+| 11 | `015_create_event_logs_table_ForUser.sql` | **イベントログ機能追加**（event_logs テーブル、2つのビュー） | **Phase 2.7** |
+| 12 | `016_add_delete_policy_stamp_history.sql` | DELETE/UPDATE RLSポリシー追加（SERVICE_ROLE_KEY依存削除） | Phase 2.7 |
 
 **注意:**
 - 002 は 001 に依存（外部キー: profiles.id）
@@ -833,9 +983,10 @@ CREATE POLICY "allow_public_read" ON profiles FOR SELECT USING (true);
 |------|----------|------|
 | 2026-02-16 | 1.0 | 初版作成：全テーブル・関数・トリガーを統合したスキーマドキュメント |
 | 2026-02-16 | 1.1 | 008マイグレーション追加（visit_count, amount カラム）、スタンプ表記を「点」に統一 |
+| 2026-02-24 | 1.3 | **Phase 2.7 イベントログ機能追加**：event_logs テーブル、daily_active_users/event_summary ビュー、015/016マイグレーション追加 |
 | 2026-02-18 | 1.2 | **Phase 2 家族機能追加**：families テーブル、family_stamp_totals ビュー、profiles テーブルへの family_id/family_role カラム追加、ER図更新、009/009-fixマイグレーション追加 |
 
 ---
 
 **作成者:** Claude Code
-**最終更新日:** 2026-02-18
+**最終更新日:** 2026-02-24

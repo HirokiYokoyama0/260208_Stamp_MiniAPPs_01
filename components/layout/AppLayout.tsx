@@ -14,6 +14,7 @@ import {
 import { useLiff } from "@/hooks/useLiff";
 import { ViewModeProvider, useViewMode } from "@/contexts/ViewModeContext";
 import FriendshipPromptModal from "@/components/features/FriendshipPromptModal";
+import SurveyModal from "@/components/survey/SurveyModal";
 import KidsSlotButton from "@/components/shared/KidsSlotButton";
 import { logAppOpen } from "@/lib/analytics";
 
@@ -75,12 +76,53 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [showFriendshipModal, setShowFriendshipModal] = useState(false);
   const [hasShownModal, setHasShownModal] = useState(false);
 
+  // アンケートモーダル関連のstate
+  const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const [surveyData, setSurveyData] = useState<{
+    surveyId: string;
+    title: string;
+    description?: string;
+  } | null>(null);
+
   // アプリ起動ログ
   useEffect(() => {
     if (isLoggedIn && profile) {
       logAppOpen({ userId: profile.userId });
     }
   }, [isLoggedIn, profile]);
+
+  // アンケートモーダル表示チェック
+  useEffect(() => {
+    if (!isLoggedIn || !profile || isLoading) return;
+
+    const checkPendingSurvey = async () => {
+      try {
+        const res = await fetch('/api/survey/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: profile.userId }),
+        });
+
+        const data = await res.json();
+
+        if (data.shouldShow && data.surveyId) {
+          // 友だち登録モーダルの後に表示（優先度を考慮）
+          setTimeout(() => {
+            setSurveyData({
+              surveyId: data.surveyId,
+              title: data.surveyTitle || 'アンケート',
+              description: data.surveyDescription,
+            });
+            setShowSurveyModal(true);
+          }, showFriendshipModal ? 3000 : 1500); // 友だちモーダル表示中なら遅延
+        }
+      } catch (error) {
+        console.error('アンケートチェックエラー:', error);
+      }
+    };
+
+    checkPendingSurvey();
+  }, [isLoggedIn, profile, isLoading, showFriendshipModal]);
 
   // 初回起動時に友だち登録を促進
   useEffect(() => {
@@ -123,6 +165,29 @@ export function AppLayout({ children }: AppLayoutProps) {
     // 公式アカウントページへのリダイレクトはモーダル内で処理
   };
 
+  const handleCloseSurveyModal = () => {
+    setShowSurveyModal(false);
+  };
+
+  const handlePostponeSurvey = async () => {
+    if (!profile || !surveyData) return;
+
+    try {
+      await fetch('/api/survey/postpone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: profile.userId,
+          surveyId: surveyData.surveyId,
+        }),
+      });
+      setShowSurveyModal(false);
+    } catch (error) {
+      console.error('アンケート後回しエラー:', error);
+      setShowSurveyModal(false);
+    }
+  };
+
   return (
     <ViewModeProvider>
       <div className="flex min-h-screen flex-col bg-white">
@@ -144,6 +209,18 @@ export function AppLayout({ children }: AppLayoutProps) {
           onClose={handleCloseFriendshipModal}
           onConfirm={handleConfirmFriendship}
         />
+
+        {/* アンケートモーダル */}
+        {surveyData && (
+          <SurveyModal
+            isOpen={showSurveyModal}
+            surveyId={surveyData.surveyId}
+            title={surveyData.title}
+            description={surveyData.description}
+            onClose={handleCloseSurveyModal}
+            onPostpone={handlePostponeSurvey}
+          />
+        )}
 
         {/* 子供用スロットボタン（ボトムナビ左上） */}
         <KidsSlotButton />

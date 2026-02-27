@@ -31,6 +31,31 @@ export const fetchStampCount = async (userId: string): Promise<number> => {
 };
 
 /**
+ * ユーザーの訪問回数を取得（profilesテーブルから）
+ * @param userId LINEユーザーID
+ * @returns 訪問回数
+ */
+export const fetchVisitCount = async (userId: string): Promise<number> => {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("visit_count")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.error("❌ 訪問回数の取得に失敗しました:", error);
+      return 0;
+    }
+
+    return data?.visit_count ?? 0;
+  } catch (err) {
+    console.error("❌ 予期しないエラー:", err);
+    return 0;
+  }
+};
+
+/**
  * ユーザーのスタンプ履歴を取得
  * @param userId LINEユーザーID
  * @returns スタンプ履歴の配列（新しい順）
@@ -194,4 +219,54 @@ export const STAMP_AMOUNTS = {
   SLOT_MID: 5,
   /** スロット当選（最大）: 8個 */
   SLOT_MAX: 8,
+  /** アンケート報酬: 30個 */
+  SURVEY_REWARD: 30,
 } as const;
+
+// ========================================
+// スタンプ履歴表示ユーティリティ
+// ========================================
+
+/**
+ * スタンプ取得方法のラベルを取得
+ * @param stampMethod スタンプ取得方法
+ * @returns 日本語ラベル
+ */
+export const getStampMethodLabel = (
+  stampMethod: StampHistoryRecord["stamp_method"]
+): string => {
+  switch (stampMethod) {
+    case "qr_scan":
+      return "来院（QRコード）";
+    case "manual_admin":
+      return "スタッフ操作";
+    case "import":
+      return "データ移行";
+    case "survey_reward":
+      return "アンケート回答報酬";
+    default:
+      return "不明";
+  }
+};
+
+/**
+ * スタンプ取得方法に応じたアイコン名を取得（lucide-react）
+ * @param stampMethod スタンプ取得方法
+ * @returns アイコン名
+ */
+export const getStampMethodIcon = (
+  stampMethod: StampHistoryRecord["stamp_method"]
+): "QrCode" | "User" | "Package" | "FileText" => {
+  switch (stampMethod) {
+    case "qr_scan":
+      return "QrCode";
+    case "manual_admin":
+      return "User";
+    case "import":
+      return "Package";
+    case "survey_reward":
+      return "FileText";
+    default:
+      return "QrCode";
+  }
+};

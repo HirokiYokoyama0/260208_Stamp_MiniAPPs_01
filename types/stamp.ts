@@ -10,7 +10,7 @@ export interface StampHistoryRecord {
   user_id: string;
   visit_date: string;
   stamp_number: number;
-  stamp_method: "qr_scan" | "manual_admin" | "import";
+  stamp_method: "qr_scan" | "manual_admin" | "import" | "survey_reward";
   qr_code_id: string | null;
   amount: number | null; // QRスキャンで獲得したポイント数（通常5、優良10）
   notes: string | null;

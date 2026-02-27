@@ -3,14 +3,17 @@
 import { useEffect, useState } from "react";
 import { useLiff } from "@/hooks/useLiff";
 import { QRScanner } from "@/components/shared/QRScanner";
-import { CheckCircle2, Trophy } from "lucide-react";
+import { Trophy, QrCode, User, Package, FileText } from "lucide-react";
 import {
   fetchStampCount,
+  fetchVisitCount,
   fetchStampHistory,
   addStamp,
   formatStampDate,
   getStampProgress,
   calculateStampDisplay,
+  getStampMethodLabel,
+  getStampMethodIcon,
 } from "@/lib/stamps";
 import { StampHistoryRecord } from "@/types/stamp";
 import { logEvent } from "@/lib/analytics";
@@ -20,6 +23,7 @@ const STAMP_GOAL = 10; // ごほうび交換に必要なスタンプ数
 export default function AdultStampPage() {
   const { isLoggedIn, profile } = useLiff();
   const [stampCount, setStampCount] = useState(0);
+  const [visitCount, setVisitCount] = useState(0);
   const [stampHistory, setStampHistory] = useState<StampHistoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
@@ -36,6 +40,10 @@ export default function AdultStampPage() {
       // スタンプ数は profiles.stamp_count から取得（Single Source of Truth）
       const count = await fetchStampCount(profile.userId);
       setStampCount(count);
+
+      // 訪問回数は profiles.visit_count から取得
+      const visits = await fetchVisitCount(profile.userId);
+      setVisitCount(visits);
 
       // 履歴は stamp_history から取得
       const history = await fetchStampHistory(profile.userId);
@@ -108,9 +116,10 @@ export default function AdultStampPage() {
           <h2 className="text-xs font-medium uppercase tracking-wider text-gray-400">
             現在のスタンプ数
           </h2>
-          <p className="text-xs text-gray-500">
-            訪問回数: {stampHistory.length}回
-          </p>
+          <div className="text-right text-xs text-gray-500">
+            <p>訪問回数: {visitCount}回</p>
+            <p className="mt-0.5">スタンプ獲得: {stampHistory.length}回</p>
+          </div>
         </div>
         <div className="mt-4 flex items-center justify-center">
           <div className="text-center">
@@ -160,10 +169,10 @@ export default function AdultStampPage() {
         {isScanning ? "読み取り中..." : "来院スタンプを読み取る"}
       </QRScanner>
 
-      {/* 来院履歴リスト */}
+      {/* スタンプ獲得履歴リスト */}
       <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-gray-400">
-          来院履歴
+          スタンプ獲得履歴
         </h2>
         {isLoading ? (
           <p className="text-sm text-gray-400">読み込み中...</p>
@@ -176,31 +185,50 @@ export default function AdultStampPage() {
           </div>
         ) : (
           <ul className="space-y-3">
-            {stampHistory.map((record, index) => {
-              const visitNumber = stampHistory.length - index; // 訪問回数（最新が1番目）
+            {stampHistory.map((record) => {
               const { fullStamps: recordStamps } = calculateStampDisplay(record.stamp_number);
+              const acquiredAmount = record.amount || 0;
+              const methodLabel = getStampMethodLabel(record.stamp_method);
+              const iconName = getStampMethodIcon(record.stamp_method);
+
+              // アイコンコンポーネントの選択
+              const IconComponent =
+                iconName === "QrCode" ? QrCode :
+                iconName === "User" ? User :
+                iconName === "Package" ? Package :
+                FileText;
+
+              // スタンプ取得方法に応じた背景色
+              const bgColor =
+                record.stamp_method === "qr_scan" ? "bg-primary/10" :
+                record.stamp_method === "survey_reward" ? "bg-green-500/10" :
+                record.stamp_method === "manual_admin" ? "bg-amber-500/10" :
+                "bg-gray-400/10";
+
+              // アイコン色
+              const iconColor =
+                record.stamp_method === "qr_scan" ? "text-primary" :
+                record.stamp_method === "survey_reward" ? "text-green-600" :
+                record.stamp_method === "manual_admin" ? "text-amber-600" :
+                "text-gray-500";
+
               return (
                 <li
                   key={record.id}
                   className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/30 p-3 transition-colors hover:bg-gray-50"
                 >
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                  <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${bgColor}`}>
+                    <IconComponent className={`h-5 w-5 ${iconColor}`} />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-800">
-                      {visitNumber}回目の来院
-                      {record.stamp_method === 'manual_admin' && (
-                        <span className="ml-2 text-xs text-gray-500">(スタッフ編集)</span>
-                      )}
-                      {record.stamp_method === 'qr_scan' && record.amount && (
-                        <span className="ml-2 text-xs font-medium text-primary">
-                          QRコード {record.amount}個獲得
-                        </span>
-                      )}
+                    <p className="text-sm font-bold text-gray-900">
+                      +{acquiredAmount}個獲得（合計 {recordStamps}個）
                     </p>
-                    <p className="text-xs text-gray-500">
-                      {formatStampDate(record.visit_date)} • スタンプ {recordStamps}個
+                    <p className="text-xs font-medium text-gray-600 mt-0.5">
+                      {methodLabel}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {formatStampDate(record.visit_date)}
                     </p>
                   </div>
                 </li>
