@@ -79,19 +79,6 @@ export default function SettingsPage() {
     fetchUserRoleAndProxyChildren();
   }, [profile?.userId]);
 
-  const handleFamilyManage = () => {
-    if (familyRole === 'parent' && familyId) {
-      // 親で家族に参加済み → 家族管理画面
-      router.push('/family/manage');
-    } else if (familyRole === 'child' && familyId) {
-      // 子で家族に参加済み → 家族情報画面（将来実装、今は家族管理画面）
-      router.push('/family/manage');
-    } else {
-      // 家族に未参加 → 招待コード入力画面
-      router.push('/family/join');
-    }
-  };
-
   const handleAddFriend = () => {
     window.open(OFFICIAL_ACCOUNT_URL, "_blank");
   };
@@ -319,25 +306,60 @@ export default function SettingsPage() {
       {/* 家族管理セクション */}
       <section className="mt-8">
         <h3 className="mb-3 text-sm font-medium text-gray-700">家族管理</h3>
-        <button
-          onClick={handleFamilyManage}
-          className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 p-4 transition-all hover:border-primary hover:bg-primary/5"
-        >
-          <Users size={32} className="text-primary" />
-          <div className="flex-1 text-left">
-            <p className="font-semibold text-gray-800">
-              {familyRole === 'parent' && '家族の管理'}
-              {familyRole === 'child' && familyId && '家族情報'}
-              {(!familyRole || !familyId) && '家族に参加'}
-            </p>
-            <p className="text-xs text-gray-500">
-              {familyRole === 'parent' && '家族メンバーの管理や招待コードの確認'}
-              {familyRole === 'child' && familyId && '家族情報を確認'}
-              {(!familyRole || !familyId) && '招待コードで家族グループに参加しよう'}
-            </p>
+
+        {/* 家族参加済みの場合 */}
+        {(familyRole && familyId) ? (
+          <button
+            onClick={() => router.push('/family/manage')}
+            className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 p-4 transition-all hover:border-primary hover:bg-primary/5"
+          >
+            <Users size={32} className="text-primary" />
+            <div className="flex-1 text-left">
+              <p className="font-semibold text-gray-800">
+                {familyRole === 'parent' && '家族の管理'}
+                {familyRole === 'child' && '家族情報'}
+              </p>
+              <p className="text-xs text-gray-500">
+                {familyRole === 'parent' && '家族メンバーの管理や招待コードの確認'}
+                {familyRole === 'child' && '家族情報を確認'}
+              </p>
+            </div>
+            <span className="text-gray-400">→</span>
+          </button>
+        ) : (
+          /* 家族未参加の場合：2つの選択肢を表示 */
+          <div className="space-y-3">
+            {/* 親として家族を作成 */}
+            <button
+              onClick={() => router.push('/family/create')}
+              className="flex w-full items-center gap-4 rounded-lg border-2 border-primary/30 bg-primary/5 p-4 transition-all hover:border-primary hover:bg-primary/10"
+            >
+              <Users size={32} className="text-primary" />
+              <div className="flex-1 text-left">
+                <p className="font-semibold text-gray-800">家族グループを作成</p>
+                <p className="text-xs text-gray-500">
+                  親として家族を作成し、お子様を追加
+                </p>
+              </div>
+              <span className="text-gray-400">→</span>
+            </button>
+
+            {/* 子として家族に参加 */}
+            <button
+              onClick={() => router.push('/family/join')}
+              className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 p-4 transition-all hover:border-primary hover:bg-primary/5"
+            >
+              <Baby size={32} className="text-purple-600" />
+              <div className="flex-1 text-left">
+                <p className="font-semibold text-gray-800">家族に参加</p>
+                <p className="text-xs text-gray-500">
+                  招待コードで既存の家族グループに参加
+                </p>
+              </div>
+              <span className="text-gray-400">→</span>
+            </button>
           </div>
-          <span className="text-gray-400">→</span>
-        </button>
+        )}
       </section>
 
       {/* 子供の画面切替セクション（代理管理メンバーがいる場合のみ表示） */}
