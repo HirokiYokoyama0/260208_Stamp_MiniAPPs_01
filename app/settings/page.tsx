@@ -18,8 +18,8 @@ interface ProxyChild {
 }
 
 export default function SettingsPage() {
-  const { viewMode, setViewMode, isLoading, setSelectedChildId } = useViewMode();
-  const { profile, isFriend } = useLiff();
+  const { viewMode, setViewMode, isLoading: viewModeLoading, setSelectedChildId, selectedChildId } = useViewMode();
+  const { profile, isFriend, isLoading } = useLiff();
   const router = useRouter();
   const [familyRole, setFamilyRole] = useState<string | null>(null);
   const [familyId, setFamilyId] = useState<string | null>(null);
@@ -30,6 +30,14 @@ export default function SettingsPage() {
   const [editRealName, setEditRealName] = useState('');
   const [editTicketNumber, setEditTicketNumber] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // キッズモードの場合は子供用設定画面にリダイレクト
+  useEffect(() => {
+    if (!viewModeLoading && viewMode === 'kids' && selectedChildId) {
+      console.log('[Settings] キッズモード検出 → /child-mode/settings にリダイレクト');
+      router.replace('/child-mode/settings');
+    }
+  }, [viewMode, selectedChildId, viewModeLoading, router]);
 
   // ユーザーの家族ロールと代理管理メンバーを取得
   useEffect(() => {
