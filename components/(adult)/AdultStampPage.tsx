@@ -12,13 +12,12 @@ import {
   formatStampDate,
   getStampProgress,
   calculateStampDisplay,
+  calculateNextGoal,
   getStampMethodLabel,
   getStampMethodIcon,
 } from "@/lib/stamps";
 import { StampHistoryRecord } from "@/types/stamp";
 import { logEvent } from "@/lib/analytics";
-
-const STAMP_GOAL = 10; // ごほうび交換に必要なスタンプ数
 
 export default function AdultStampPage() {
   const { isLoggedIn, profile } = useLiff();
@@ -30,6 +29,9 @@ export default function AdultStampPage() {
 
   // 10倍整数システム対応のスタンプ表示
   const { fullStamps, progress: stampProgress } = calculateStampDisplay(stampCount);
+
+  // 動的な次の目標値（100個単位）
+  const nextGoal = calculateNextGoal(fullStamps);
 
   // スタンプ履歴とカウント数を取得
   const fetchHistory = async () => {
@@ -91,7 +93,7 @@ export default function AdultStampPage() {
         // 履歴を再取得して画面更新
         await fetchHistory();
         const { fullStamps: updatedStamps } = calculateStampDisplay(result.stampCount || stampCount + 1);
-        alert(`スタンプを取得しました！\n現在 ${updatedStamps} / ${STAMP_GOAL}個`);
+        alert(`スタンプを取得しました！\n現在 ${updatedStamps}個`);
       } else {
         // エラー表示
         console.error("❌ スタンプ付与失敗:", result.error);
@@ -105,8 +107,8 @@ export default function AdultStampPage() {
     }
   };
 
-  // スタンプ進捗を計算
-  const progress = getStampProgress(fullStamps, STAMP_GOAL);
+  // スタンプ進捗を計算（100個単位の動的目標）
+  const progress = getStampProgress(fullStamps, nextGoal);
 
   return (
     <div className="space-y-6 px-4 py-6">
@@ -124,38 +126,18 @@ export default function AdultStampPage() {
         <div className="mt-4 flex items-center justify-center">
           <div className="text-center">
             <p className="text-5xl font-bold text-primary">{fullStamps}</p>
-            <p className="mt-2 text-sm text-gray-500">/ {STAMP_GOAL}個</p>
+            <p className="mt-2 text-sm text-gray-500">個</p>
           </div>
         </div>
-        {/* プログレスバー */}
+        {/* プログレスバー（100個単位） */}
         <div className="mt-6 h-3 overflow-hidden rounded-full bg-gray-100">
           <div
             className="h-full bg-gradient-to-r from-primary to-primary-dark transition-all duration-500"
             style={{ width: `${progress.percentage}%` }}
           />
         </div>
-        {stampProgress > 0 && (
-          <div className="mt-4 rounded-lg bg-sky-50 p-2.5">
-            <p className="text-xs text-sky-700 font-medium">
-              次のスタンプまで: {stampProgress}%
-            </p>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-sky-100">
-              <div
-                className="h-full rounded-full bg-sky-400 transition-all"
-                style={{ width: `${stampProgress}%` }}
-              />
-            </div>
-          </div>
-        )}
         <p className="mt-3 text-center text-xs text-gray-500">
-          {progress.isComplete ? (
-            <span className="flex items-center justify-center gap-1 font-semibold text-accent">
-              <Trophy size={14} />
-              ごほうび交換可能です！
-            </span>
-          ) : (
-            `あと${progress.remaining}個でごほうび交換可能です`
-          )}
+          次の目標まであと{progress.remaining}個（目標: {nextGoal}個）
         </p>
       </section>
 

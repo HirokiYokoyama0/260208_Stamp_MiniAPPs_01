@@ -7,7 +7,7 @@ import { VersionInfo } from "@/components/layout/VersionInfo";
 import { StaffPinModal } from "@/components/shared/StaffPinModal";
 import { Smile } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addStamp, fetchStampCount, calculateStampDisplay } from "@/lib/stamps";
+import { addStamp, fetchStampCount, calculateStampDisplay, calculateNextGoal, getStampProgress } from "@/lib/stamps";
 import { fetchUserMemo, formatVisitDate } from "@/lib/memo";
 import { UserMemo } from "@/types/memo";
 import { logReservationClick, logEvent } from "@/lib/analytics";
@@ -218,7 +218,7 @@ export default function AdultHome() {
         setShowStaffModal(false);
         const { fullStamps: updatedStamps } = calculateStampDisplay(result.stampCount);
         alert(
-          `スタンプ数を更新しました！\n現在 ${updatedStamps} / ${stubStampGoal}個`
+          `スタンプ数を更新しました！\n現在 ${updatedStamps}個`
         );
         // 最新データを再取得
         await fetchUserData(profile.userId);
@@ -374,7 +374,7 @@ export default function AdultHome() {
                 setStampCount(result.stampCount || stampCount + 1);
                 console.log("✅ スタンプを付与しました:", result);
                 const { fullStamps: updatedStamps } = calculateStampDisplay(result.stampCount || stampCount + 1);
-                alert(`スタンプを取得しました！\n現在 ${updatedStamps} / ${stubStampGoal}個`);
+                alert(`スタンプを取得しました！\n現在 ${updatedStamps}個`);
                 // 最新データを再取得
                 await fetchUserData(profile.userId);
               } else {
@@ -395,67 +395,64 @@ export default function AdultHome() {
       {/* スタンプ進捗 */}
       <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-gray-400">
-          現在のスタンプ進捗
+          現在のスタンプ数
         </h2>
         <div className="space-y-4">
           {/* 個人のスタンプ数 */}
           <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">あなたの通院スタンプ</span>
-              <span className="font-semibold text-gray-800">
-                {fullStamps} / {stubStampGoal}
-              </span>
+            <div className="text-center">
+              <p className="text-sm text-gray-600 mb-2">あなたの通院スタンプ</p>
+              <p className="text-4xl font-bold text-primary">{fullStamps}個</p>
             </div>
-            <div className="h-3 overflow-hidden rounded-full bg-gray-100">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-primary to-primary-dark transition-all"
-                style={{
-                  width: `${Math.min(100, (fullStamps / stubStampGoal) * 100)}%`,
-                }}
-              />
-            </div>
-            {progress > 0 && (
-              <div className="rounded-lg bg-sky-50 p-2.5">
-                <p className="text-xs text-sky-700 font-medium">
-                  次のスタンプまで: {progress}%
-                </p>
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-sky-100">
-                  <div
-                    className="h-full rounded-full bg-sky-400 transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-            <p className="text-xs text-gray-500">
-              あと{Math.max(0, stubStampGoal - fullStamps)}回でごほうび交換可能です
-            </p>
+
+            {/* プログレスバー（100個単位） */}
+            {(() => {
+              const nextGoal = calculateNextGoal(fullStamps);
+              const progress = getStampProgress(fullStamps, nextGoal);
+              return (
+                <>
+                  <div className="h-3 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-primary to-primary-dark transition-all"
+                      style={{ width: `${progress.percentage}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 text-center">
+                    次の目標まであと{progress.remaining}個（目標: {nextGoal}個）
+                  </p>
+                </>
+              );
+            })()}
           </div>
 
           {/* 家族全体のスタンプ数（家族に所属している場合のみ表示） */}
-          {familyId && familyStampCount !== null && (
-            <>
-              <div className="border-t border-gray-100 pt-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">家族全体の通院スタンプ</span>
-                  <span className="font-semibold text-purple-600">
-                    {calculateStampDisplay(familyStampCount).fullStamps} / {stubStampGoal}
-                  </span>
+          {familyId && familyStampCount !== null && (() => {
+            const familyStamps = calculateStampDisplay(familyStampCount).fullStamps;
+            const familyNextGoal = calculateNextGoal(familyStamps);
+            const familyProgress = getStampProgress(familyStamps, familyNextGoal);
+            return (
+              <div className="border-t border-gray-100 pt-4 space-y-3">
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-2">家族全体の通院スタンプ</p>
+                  <p className="text-4xl font-bold text-purple-600">{familyStamps}個</p>
                 </div>
-                <div className="mt-3 h-3 overflow-hidden rounded-full bg-gray-100">
+
+                {/* プログレスバー（100個単位） */}
+                <div className="h-3 overflow-hidden rounded-full bg-gray-100">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-600 transition-all"
-                    style={{
-                      width: `${Math.min(100, (calculateStampDisplay(familyStampCount).fullStamps / stubStampGoal) * 100)}%`,
-                    }}
+                    style={{ width: `${familyProgress.percentage}%` }}
                   />
                 </div>
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="text-xs text-gray-500 text-center">
+                  次の目標まであと{familyProgress.remaining}個（目標: {familyNextGoal}個）
+                </p>
+                <p className="text-xs text-gray-500 text-center">
                   家族みんなで協力してスタンプを貯めよう！
                 </p>
               </div>
-            </>
-          )}
+            );
+          })()}
         </div>
       </section>
 

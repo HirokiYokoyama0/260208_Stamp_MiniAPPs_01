@@ -155,6 +155,21 @@ export const getStampProgress = (
   };
 };
 
+/**
+ * 動的な次の目標値を計算（100個単位）
+ * @param currentStamps 現在のスタンプ数
+ * @returns 次の目標値（100, 200, 300...）
+ *
+ * @example
+ * calculateNextGoal(63)  // → 100
+ * calculateNextGoal(150) // → 200
+ * calculateNextGoal(200) // → 300
+ */
+export const calculateNextGoal = (currentStamps: number): number => {
+  const GOAL_UNIT = 100; // 100個単位
+  return Math.ceil(currentStamps / GOAL_UNIT) * GOAL_UNIT || GOAL_UNIT;
+};
+
 // ========================================
 // スタンプ表示ユーティリティ
 // ========================================

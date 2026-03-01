@@ -11,17 +11,23 @@ import {
 } from "@/lib/rewards";
 import { fetchStampCount, calculateStampDisplay } from "@/lib/stamps";
 import { RewardWithStatus, RewardExchange } from "@/types/reward";
+import { supabase } from "@/lib/supabase";
 
 export default function AdultRewardsPage() {
   const { isInitialized, isLoggedIn, isLoading, profile, login } = useLiff();
   const [rewards, setRewards] = useState<RewardWithStatus[]>([]);
   const [stampCount, setStampCount] = useState(0);
+  const [familyStampCount, setFamilyStampCount] = useState<number | null>(null);
+  const [familyId, setFamilyId] = useState<string | null>(null);
   const [exchangeHistory, setExchangeHistory] = useState<RewardExchange[]>([]);
   const [isLoadingRewards, setIsLoadingRewards] = useState(true);
   const [isExchanging, setIsExchanging] = useState(false);
 
+  // 特典交換に使用するスタンプ数（家族がいる場合は家族合算、いない場合は個人）
+  const effectiveStampCount = familyId && familyStampCount !== null ? familyStampCount : stampCount;
+
   // 10倍整数システム対応のスタンプ表示
-  const { fullStamps, progress } = calculateStampDisplay(stampCount);
+  const { fullStamps, progress } = calculateStampDisplay(effectiveStampCount);
 
   // 特典一覧とスタンプ数、交換履歴を取得
   useEffect(() => {
@@ -31,15 +37,45 @@ export default function AdultRewardsPage() {
       setIsLoadingRewards(true);
       try {
         // 並行して取得
-        const [rewardsData, count, history] = await Promise.all([
+        const [rewardsData, count, history, profileData] = await Promise.all([
           fetchRewards(),
           fetchStampCount(profile.userId),
           fetchUserExchangeHistory(profile.userId),
+          supabase
+            .from("profiles")
+            .select("family_id")
+            .eq("id", profile.userId)
+            .single(),
         ]);
 
         setStampCount(count);
         setExchangeHistory(history);
-        setRewards(addRewardStatus(rewardsData, count, history));
+
+        // 家族IDを取得
+        const userFamilyId = profileData.data?.family_id || null;
+        setFamilyId(userFamilyId);
+
+        // 家族に所属している場合、家族全体のスタンプ数を取得
+        if (userFamilyId) {
+          const { data: familyData } = await supabase
+            .from("family_stamp_totals")
+            .select("total_stamp_count")
+            .eq("family_id", userFamilyId)
+            .single();
+
+          if (familyData) {
+            setFamilyStampCount(familyData.total_stamp_count ?? 0);
+            // 家族合算値でステータスを設定
+            setRewards(addRewardStatus(rewardsData, familyData.total_stamp_count ?? 0, history));
+          } else {
+            setFamilyStampCount(null);
+            setRewards(addRewardStatus(rewardsData, count, history));
+          }
+        } else {
+          // 家族なし：個人のスタンプ数を使用
+          setFamilyStampCount(null);
+          setRewards(addRewardStatus(rewardsData, count, history));
+        }
       } catch (error) {
         console.error("❌ データ取得エラー:", error);
       } finally {
@@ -75,7 +111,24 @@ export default function AdultRewardsPage() {
 
         setExchangeHistory(newHistory);
         setStampCount(newCount);
-        setRewards((prev) => addRewardStatus(prev, newCount, newHistory));
+
+        // 家族がいる場合は家族スタンプ数も再取得
+        if (familyId) {
+          const { data: familyData } = await supabase
+            .from("family_stamp_totals")
+            .select("total_stamp_count")
+            .eq("family_id", familyId)
+            .single();
+
+          if (familyData) {
+            setFamilyStampCount(familyData.total_stamp_count ?? 0);
+            setRewards((prev) => addRewardStatus(prev, familyData.total_stamp_count ?? 0, newHistory));
+          } else {
+            setRewards((prev) => addRewardStatus(prev, newCount, newHistory));
+          }
+        } else {
+          setRewards((prev) => addRewardStatus(prev, newCount, newHistory));
+        }
       } else {
         alert(result.message);
       }
@@ -143,8 +196,17 @@ export default function AdultRewardsPage() {
 
       {/* 現在のスタンプ数 */}
       <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-        <p className="text-xs text-gray-500">現在のスタンプ数</p>
-        <p className="mt-2 text-4xl font-bold text-primary">{fullStamps}個</p>
+        <p className="text-xs text-gray-500">
+          {familyId && familyStampCount !== null ? "家族全体のスタンプ数" : "現在のスタンプ数"}
+        </p>
+        <p className={`mt-2 text-4xl font-bold ${familyId && familyStampCount !== null ? "text-purple-600" : "text-primary"}`}>
+          {fullStamps}個
+        </p>
+        {familyId && familyStampCount !== null && (
+          <p className="mt-2 text-xs text-gray-500">
+            あなたのスタンプ: {calculateStampDisplay(stampCount).fullStamps}個
+          </p>
+        )}
         {progress > 0 && (
           <div className="mt-3 rounded-lg bg-sky-50 p-2">
             <p className="text-xs text-sky-700 font-medium">
