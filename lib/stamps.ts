@@ -244,6 +244,8 @@ export const getStampMethodLabel = (
       return "データ移行";
     case "survey_reward":
       return "アンケート回答報酬";
+    case "slot_game":
+      return "スロットゲーム";
     default:
       return "不明";
   }
