@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -53,17 +53,16 @@ function renderSymbol(sym: string, size: number = 44) {
 }
 
 // ─── ドラム式リールコンポーネント ────────────────────────────
-function DrumReel({
-  index,
-  spinning,
-  stopped,
-  onStop,
-}: {
+interface DrumReelHandle {
+  stop: () => void;
+}
+
+const DrumReel = forwardRef<DrumReelHandle, {
   index: number;
   spinning: boolean;
   stopped: boolean;
   onStop: (index: number, symbol: string) => void;
-}) {
+}>(function DrumReel({ index, spinning, stopped, onStop }, ref) {
   // offsetRef: ストリップを何px上にスクロールしたか（単調増加）
   // 全リール初期位置を0に固定して揃える。ランダム性はタップタイミングで生まれる
   const offsetRef = useRef(0);
@@ -138,6 +137,10 @@ function DrumReel({
     isStoppingRef.current = true;
   };
 
+  useImperativeHandle(ref, () => ({
+    stop: handleTap,
+  }), [spinning, stopped]);
+
   const canTap = spinning && !stopped;
 
   return (
@@ -194,7 +197,7 @@ function DrumReel({
       )}
     </div>
   );
-}
+});
 
 // ─── サウンド ────────────────────────────────────────────────
 function playWinSound(isJackpot: boolean) {
@@ -267,6 +270,7 @@ export default function SlotPage() {
   // StrictMode の二重実行対策: ref でリール停止状態と付与状態を管理
   const stoppedReelsRef = useRef<(string | null)[]>([null, null, null]);
   const isAwardingRef = useRef(false);
+  const reelRefs = useRef<(DrumReelHandle | null)[]>([null, null, null]);
 
   useEffect(() => {
     logEvent({ eventName: "slot_game_open", userId: profile?.userId });
@@ -351,6 +355,14 @@ export default function SlotPage() {
     setSpinning(true);
   };
 
+  const stopNextReel = () => {
+    if (!spinning) return;
+    const nextIdx = stoppedReels.findIndex((r) => r === null);
+    if (nextIdx !== -1) {
+      reelRefs.current[nextIdx]?.stop();
+    }
+  };
+
   const stoppedCount = stoppedReels.filter((r) => r !== null).length;
   const isWin = result && result.label.includes("あたり");
 
@@ -385,55 +397,9 @@ export default function SlotPage() {
         もどる
       </Link>
 
-      {/* ── 歯キャラクタースロット機 ── */}
-      <div className="relative mx-auto w-full max-w-[300px]">
-
-        {/* 🦷 歯の絵文字（筐体シルエット） */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 flex select-none items-start justify-center"
-          style={{ zIndex: 0, overflow: "visible" }}
-        >
-          <span
-            className="leading-none"
-            style={{
-              fontSize: 420,
-              display: "block",
-              transform: "scaleY(1.35)",
-              transformOrigin: "top center",
-              filter: "drop-shadow(0 10px 28px rgba(0,0,0,0.32))",
-            }}
-          >
-            🦷
-          </span>
-        </div>
-
-        {/* コンテンツ（絵文字の上に重ねる） */}
-        <div className="relative z-10 flex flex-col items-center px-5 pt-7 pb-5">
-
-          {/* 顔（目 + ほっぺ） */}
-          <div className="relative mb-2 flex w-full justify-center">
-            {/* ほっぺ左 */}
-            <div className="absolute -left-1 top-0.5 h-5 w-11 rounded-full bg-pink-300/65" />
-            {/* ほっぺ右 */}
-            <div className="absolute -right-1 top-0.5 h-5 w-11 rounded-full bg-pink-300/65" />
-            {/* 目左 */}
-            <div
-              className="absolute rounded-full bg-gray-800"
-              style={{ left: "26%", top: 0, width: 12, height: 15 }}
-            >
-              <div className="absolute left-1 top-1 h-2 w-2 rounded-full bg-yellow-300/60" />
-            </div>
-            {/* 目右 */}
-            <div
-              className="absolute rounded-full bg-gray-800"
-              style={{ right: "26%", top: 0, width: 12, height: 15 }}
-            >
-              <div className="absolute left-1 top-1 h-2 w-2 rounded-full bg-yellow-300/60" />
-            </div>
-            {/* 高さ確保 */}
-            <div className="h-9" />
-          </div>
+      {/* ── スロット機 ── */}
+      <div className="mx-auto w-full max-w-[300px]">
+        <div className="flex flex-col items-center px-3">
 
           {/* ── オレンジのスロットパネル ── */}
           <div className="w-full rounded-2xl border-4 border-orange-700 bg-orange-500 p-2 shadow-[0_4px_14px_rgba(0,0,0,0.3),inset_0_2px_8px_rgba(255,180,0,0.25)]">
@@ -459,6 +425,7 @@ export default function SlotPage() {
                 {[0, 1, 2].map((i) => (
                   <DrumReel
                     key={`${i}-${spinKey}`}
+                    ref={(el) => { reelRefs.current[i] = el; }}
                     index={i}
                     spinning={spinning}
                     stopped={stoppedReels[i] !== null}
@@ -515,17 +482,16 @@ export default function SlotPage() {
             </div>
           </div>
 
-          {/* スピンボタン（3D押しボタン風） */}
+          {/* スピン／ストップボタン（3D押しボタン風） */}
           <button
-            onClick={spin}
-            disabled={spinning}
+            onClick={spinning ? stopNextReel : spin}
             className={`mt-4 w-full rounded-full border-b-4 py-3.5 text-base font-black tracking-wider transition-all active:translate-y-1 active:border-b-0 ${
               spinning
-                ? "cursor-not-allowed border-gray-400 bg-gray-300 text-gray-500"
+                ? "border-red-800 bg-gradient-to-b from-red-400 to-red-600 text-white shadow-lg"
                 : "border-orange-800 bg-gradient-to-b from-orange-400 to-orange-600 text-white shadow-lg"
             }`}
           >
-            {spinning ? "まわしてるよ..." : "🎰  まわす！"}
+            {spinning ? "🛑  とめる！" : "🎰  まわす！"}
           </button>
         </div>
       </div>
@@ -535,16 +501,22 @@ export default function SlotPage() {
         <p className="mb-1 text-center text-xs font-bold text-orange-700">あそびかた</p>
         <div className="space-y-0.5 text-center text-xs text-gray-600">
           <p>① まわす！ボタンをおす</p>
-          <p>② リールをタップしてとめる</p>
+          <p>② リールをタップ or ボタンでとめる</p>
           <p>③ まんなかのえが 3つそろったら あたり！</p>
         </div>
-        <div className="mt-1.5 flex items-center justify-center gap-0.5 text-xs">
-          {renderSymbol(TOOTH_SYMBOL, 14)}
-          {renderSymbol(TOOTH_SYMBOL, 14)}
-          {renderSymbol(TOOTH_SYMBOL, 14)}
-          <span className="ml-1 font-bold text-orange-600">→ だいあたり！</span>
+
+        {/* 報酬スタンプ数 */}
+        <div className="mt-2 space-y-0.5 rounded-xl bg-orange-50 px-3 py-2">
+          <p className="text-center text-[11px] font-bold text-orange-600">⭐ もらえるスタンプ ⭐</p>
+          <div className="flex items-center justify-center gap-1 text-[11px]">
+            {renderSymbol(TOOTH_SYMBOL, 13)}
+            {renderSymbol(TOOTH_SYMBOL, 13)}
+            {renderSymbol(TOOTH_SYMBOL, 13)}
+            <span className="ml-0.5 text-gray-600">そろえると → <span className="font-bold text-orange-700">⭐8こ</span></span>
+          </div>
+          <p className="text-center text-[11px] text-gray-600">そのほか そろえると → <span className="font-bold text-orange-600">⭐5こ</span></p>
+          <p className="text-center text-[11px] text-gray-400">はずれても <span className="font-bold text-orange-500">⭐1こ</span> もらえるよ！</p>
         </div>
-        <p className="mt-0.5 text-center text-[11px] text-gray-400">🪥 🍎 ⭐ 💎 🌸 🍀 → あたり！</p>
       </div>
     </div>
   );

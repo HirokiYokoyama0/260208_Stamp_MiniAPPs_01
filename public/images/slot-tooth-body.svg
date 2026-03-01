@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400" width="300" height="400">
+  <defs>
+    <filter id="shadow" x="-10%" y="-5%" width="120%" height="115%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="rgba(0,0,0,0.25)" />
+    </filter>
+  </defs>
+  <!-- 歯の本体（白い冠部分 + 根っこ2本） -->
+  <path
+    d="
+      M150 12
+      C70 12  22 75  28 155
+      C32 200  48 228  68 280
+      C78 310  88 365  102 375
+      C112 382  122 320  132 280
+      C140 255  160 255  168 280
+      C178 320  188 382  198 375
+      C212 365  222 310  232 280
+      C252 228  268 200  272 155
+      C278 75  230 12  150 12
+      Z
+    "
+    fill="white"
+    stroke="#d4d4d8"
+    stroke-width="2.5"
+    filter="url(#shadow)"
+  />
+</svg>
