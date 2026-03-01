@@ -99,20 +99,20 @@ export default function KidsStampPage() {
   }, [profileId, selectedChildId]);
 
   const { fullStamps } = calculateStampDisplay(stampCount);
-  const progressPercent = Math.min(100, (fullStamps / STAMP_GOAL) * 100);
 
-  // 励ましメッセージ
+  // サイクル計算（10こで1周）
+  const currentCycleStamps = fullStamps % STAMP_GOAL; // 現在サイクルの進捗 (0-9)
+  const completedCycles = Math.floor(fullStamps / STAMP_GOAL); // 完了した周回数
+  const remaining = currentCycleStamps === 0 ? STAMP_GOAL : STAMP_GOAL - currentCycleStamps;
+  const cyclePercent = (currentCycleStamps / STAMP_GOAL) * 100;
+
+  // 励ましメッセージ（サイクル内の残り数で判定）
   const getEncouragementMessage = () => {
-    if (fullStamps >= STAMP_GOAL) {
-      return "🎉 すごい！10こ たまったよ！";
-    } else if (fullStamps >= 7) {
-      return "もうすこしで ごほうび だよ！";
-    } else if (fullStamps >= 4) {
-      return "がんばってるね！";
-    } else if (fullStamps >= 1) {
-      return "いいちょうし だよ！";
-    }
-    return "つぎの びょういん まってるよ！";
+    if (fullStamps === 0) return "つぎの びょういん まってるよ！";
+    if (remaining <= 1)   return "あと もうすこし！すごいよ！";
+    if (remaining <= 3)   return "もうすこしで ごほうびだよ！";
+    if (currentCycleStamps >= 5) return "いいちょうし！がんばれ！";
+    return "がんばってるね！";
   };
 
   if (isLoading) {
@@ -144,96 +144,139 @@ export default function KidsStampPage() {
 
       {/* スタンプカード */}
       <div className="mx-auto max-w-md rounded-3xl border-4 border-white bg-white p-6 shadow-2xl">
-        <h3 className="mb-4 text-center text-2xl font-bold text-kids-purple">
+        <h3 className="mb-5 text-center text-2xl font-bold text-kids-purple">
           🦷 スタンプカード
         </h3>
 
-        {/* スタンプ表示（10個のマス） */}
-        <div className="mb-4 grid grid-cols-5 gap-3">
-          {Array.from({ length: STAMP_GOAL }).map((_, i) => (
-            <div
-              key={i}
-              className={`flex h-14 w-14 items-center justify-center rounded-xl border-4 text-3xl transition-all ${
-                i < fullStamps
-                  ? "border-kids-green bg-kids-green/20 shadow-md"
-                  : "border-gray-200 bg-gray-50"
-              }`}
-            >
-              {i < fullStamps ? "⭐" : ""}
-            </div>
-          ))}
+        {/* ① きみのスタンプ総数 */}
+        <div className="mb-5 rounded-2xl bg-gradient-to-br from-kids-pink/20 to-kids-yellow/20 py-4 text-center">
+          <p className="text-sm font-bold text-kids-purple">きみの スタンプ</p>
+          <div className="flex items-end justify-center gap-1 mt-1">
+            <span className="text-7xl font-black leading-none text-kids-pink">
+              {fullStamps}
+            </span>
+            <span className="mb-2 text-2xl font-bold text-kids-purple">こ</span>
+          </div>
+          <p className="mt-1 text-sm font-bold text-kids-blue">あつめたよ！🌟</p>
         </div>
 
-        {/* 進捗バー */}
-        <div className="mb-4">
-          <div className="h-6 overflow-hidden rounded-full bg-gray-200">
+        {/* ② つぎのごほうびまでの進捗 */}
+        <div className="mb-5">
+          <p className="mb-3 text-center text-sm font-bold text-gray-600">
+            つぎの ごほうびまで あと
+            <span className="mx-1 text-2xl font-black text-kids-pink">{remaining}</span>
+            こ！
+          </p>
+          {/* 10ドット進捗インジケーター */}
+          <div className="mb-2 flex justify-center gap-2">
+            {Array.from({ length: STAMP_GOAL }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-7 w-7 rounded-full transition-all duration-300 ${
+                  i < currentCycleStamps
+                    ? "scale-110 bg-gradient-to-b from-kids-pink to-kids-purple shadow-md"
+                    : "bg-gray-200"
+                }`}
+              />
+            ))}
+          </div>
+          {/* プログレスバー */}
+          <div className="h-4 overflow-hidden rounded-full bg-gray-100 shadow-inner">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-kids-pink to-kids-purple transition-all"
-              style={{ width: `${progressPercent}%` }}
+              className="h-full rounded-full bg-gradient-to-r from-kids-pink to-kids-purple transition-all duration-500"
+              style={{ width: `${cyclePercent}%` }}
             />
           </div>
-          <p className="mt-2 text-center text-xl font-bold text-kids-blue">
-            {fullStamps} / {STAMP_GOAL}こ
+          <p className="mt-1.5 text-center text-xs text-gray-400">
+            {currentCycleStamps} / {STAMP_GOAL}こ
           </p>
         </div>
 
-        {/* 励ましメッセージ */}
-        <div className="rounded-2xl bg-kids-yellow/20 p-4 text-center">
-          <p className="text-lg font-bold text-kids-purple">
-            {getEncouragementMessage()}
-          </p>
-        </div>
+        {/* ③ 達成バッジ（完了サイクル数） or 励ましメッセージ */}
+        {completedCycles > 0 ? (
+          <div className="rounded-2xl bg-kids-yellow/20 p-4 text-center">
+            <p className="mb-2 text-xs font-bold text-gray-500">
+              これまで ごほうびを もらったよ！
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-1">
+              {Array.from({ length: Math.min(completedCycles, 5) }).map((_, i) => (
+                <span key={i} className="text-3xl">🏆</span>
+              ))}
+              {completedCycles > 5 && (
+                <span className="text-xl font-black text-kids-purple">
+                  +{completedCycles - 5}
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-base font-black text-orange-500">
+              {completedCycles}かい ゲット！🎉
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-2xl bg-kids-yellow/20 p-4 text-center">
+            <p className="text-lg font-bold text-kids-purple">
+              {getEncouragementMessage()}
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* 来院履歴 */}
+      {/* スタンプ履歴（大人版と同じ3行構造） */}
       <div className="mt-6 rounded-3xl border-4 border-white bg-white p-5 shadow-2xl">
         <h3 className="mb-4 text-center text-xl font-bold text-kids-purple">
-          📅 びょういんに きた ひ
+          🌟 スタンプ りれき
         </h3>
         {stampHistory.length === 0 ? (
           <div className="py-8 text-center">
             <p className="text-base font-bold text-gray-400">
-              まだ びょういんに きてないよ
+              まだ スタンプが ないよ
             </p>
             <p className="mt-2 text-sm text-gray-400">
-              つぎ きたとき スタンプが もらえるよ！
+              びょういんに いったら もらえるよ！
             </p>
           </div>
         ) : (
           <ul className="space-y-3">
-            {stampHistory.slice(0, 5).map((record, index) => {
-              const visitNumber = stampHistory.length - index;
-              const { fullStamps: recordStamps } = calculateStampDisplay(
-                record.stamp_number
-              );
+            {stampHistory.map((record) => {
+              const { fullStamps: recordStamps } = calculateStampDisplay(record.stamp_number);
+              const acquiredAmount = record.amount ?? 0;
+
+              // スタンプ取得方法の絵文字・ラベル・背景色（子供向け）
+              const methodInfo: Record<string, { emoji: string; label: string; bg: string }> = {
+                qr_scan:       { emoji: "🏥", label: "びょういん に きたよ！",   bg: "bg-kids-blue/15" },
+                slot_game:     { emoji: "🎰", label: "スロット で ゲット！",      bg: "bg-kids-pink/15" },
+                survey_reward: { emoji: "📝", label: "アンケート ほうしゅう",    bg: "bg-kids-green/15" },
+                manual_admin:  { emoji: "👨‍⚕️", label: "せんせい から",         bg: "bg-kids-yellow/30" },
+              };
+              const method = methodInfo[record.stamp_method] ?? {
+                emoji: "⭐", label: "スタンプ をもらったよ", bg: "bg-gray-100",
+              };
+
               return (
                 <li
                   key={record.id}
-                  className="flex items-center gap-3 rounded-xl border-2 border-kids-blue/20 bg-kids-blue/5 p-3"
+                  className="flex items-center gap-3 rounded-xl border-2 border-kids-blue/20 bg-kids-blue/5 p-3 transition-colors"
                 >
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-kids-green/20 text-2xl">
-                    ⭐
+                  {/* アイコン（大人版と同じ構造） */}
+                  <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-2xl ${method.bg}`}>
+                    {method.emoji}
                   </div>
+                  {/* テキスト（大人版と同じ3行構造） */}
                   <div className="flex-1">
                     <p className="text-base font-bold text-kids-purple">
-                      {visitNumber}かいめ
+                      +{acquiredAmount}こ ゲット！（ぜんぶで {recordStamps}こ）
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm font-medium text-kids-blue">
+                      {method.label}
+                    </p>
+                    <p className="text-xs text-gray-500">
                       {formatStampDate(record.visit_date)}
-                    </p>
-                    <p className="text-xs text-kids-blue">
-                      スタンプ {recordStamps}こ もらったよ！
                     </p>
                   </div>
                 </li>
               );
             })}
           </ul>
-        )}
-        {stampHistory.length > 5 && (
-          <p className="mt-4 text-center text-sm text-gray-500">
-            さいきんの 5かいぶんを ひょうじしています
-          </p>
         )}
       </div>
 

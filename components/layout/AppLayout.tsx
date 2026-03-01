@@ -19,13 +19,13 @@ import KidsSlotButton from "@/components/shared/KidsSlotButton";
 import { logAppOpen } from "@/lib/analytics";
 
 const TABS = [
-  { href: "/", label: "診察券", icon: CreditCard, kidsHref: undefined },
-  { href: "/stamp", label: "スタンプ", icon: Stamp, kidsHref: undefined },
-  { href: "/rewards", label: "特典", icon: Gift, kidsHref: undefined },
-  { href: "/care", label: "ケア記録", icon: ClipboardCheck, kidsHref: undefined },
-  { href: "/info", label: "医院情報", icon: Building2, kidsHref: undefined },
-  { href: "/settings", label: "設定", icon: Settings, kidsHref: "/child-mode/settings" },
-] as const;
+  { href: "/", label: "診察券", icon: CreditCard, kidsHref: undefined, kidsDisabled: false },
+  { href: "/stamp", label: "スタンプ", icon: Stamp, kidsHref: undefined, kidsDisabled: false },
+  { href: "/rewards", label: "特典", icon: Gift, kidsHref: undefined, kidsDisabled: false },
+  { href: "/care", label: "ケア記録", icon: ClipboardCheck, kidsHref: undefined, kidsDisabled: true },
+  { href: "/info", label: "医院情報", icon: Building2, kidsHref: undefined, kidsDisabled: false },
+  { href: "/settings", label: "設定", icon: Settings, kidsHref: "/child-mode/settings", kidsDisabled: false },
+];
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -41,10 +41,24 @@ function BottomNavigation() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-100 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
       <div className="flex items-center justify-around px-1 py-2">
-        {TABS.map(({ href, label, icon: Icon, kidsHref }) => {
+        {TABS.map(({ href, label, icon: Icon, kidsHref, kidsDisabled }) => {
           // 子供モードかつkidsHrefが設定されている場合は専用リンクを使用
           const actualHref = isKidsMode && kidsHref ? kidsHref : href;
           const isActive = pathname === actualHref || (actualHref !== "/" && pathname.startsWith(actualHref));
+          const isDisabled = isKidsMode && kidsDisabled;
+
+          // キッズモードで無効化されたタブは押せない表示にする
+          if (isDisabled) {
+            return (
+              <div
+                key={href}
+                className="flex flex-1 flex-col items-center gap-1 px-2 py-2 opacity-35 cursor-not-allowed text-gray-400"
+              >
+                <Icon size={20} strokeWidth={1.8} />
+                <span className="text-[10px] font-medium leading-tight">{label}</span>
+              </div>
+            );
+          }
 
           return (
             <Link
