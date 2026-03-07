@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 interface SetupRoleRequest {
   userId: string; // LINEユーザーID
   role: "parent" | "child";
-  ticketNumber?: string; // 診察券番号
+  ticketNumber?: string; // 会員証番号
   realName?: string; // 本名
 }
 
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
       }
 
-      // プロフィールを更新（診察券番号・本名も含む）
+      // プロフィールを更新（会員証番号・本名も含む）
       const updateData: any = {
         family_id: newFamily.id,
         family_role: "parent",
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 201 }
       );
     } else {
-      // 子の場合: family_role だけ設定（診察券番号・本名も含む）
+      // 子の場合: family_role だけ設定（会員証番号・本名も含む）
       const updateData: any = {
         family_role: "child",
       };

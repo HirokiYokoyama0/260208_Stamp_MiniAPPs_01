@@ -213,7 +213,7 @@ export default function QRScanPage() {
                   href="/"
                   className="block w-full bg-primary text-white text-center font-bold py-3 rounded-lg hover:bg-primary-dark transition-colors"
                 >
-                  診察券を確認する
+                  会員証を確認する
                 </Link>
               </div>
             )}

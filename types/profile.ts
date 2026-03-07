@@ -11,12 +11,12 @@ export interface UserProfile {
   picture_url?: string | null; // LINEプロフィール画像URL
 
   // スタンプ関連
-  stamp_count: number; // 累積ポイント（内部単位: 10点 = スタンプ1個）
+  stamp_count: number; // 累積スタンプ数（1回の来院=10個）
   visit_count: number; // 純粋な来院回数
   last_visit_date?: string | null; // 最終来院日時
 
   // 患者情報
-  ticket_number?: string | null; // 診察券番号
+  ticket_number?: string | null; // 会員証番号
   real_name?: string | null; // 本名（漢字）
 
   // 家族機能

@@ -19,7 +19,7 @@ import KidsSlotButton from "@/components/shared/KidsSlotButton";
 import { logAppOpen } from "@/lib/analytics";
 
 const TABS = [
-  { href: "/", label: "診察券", icon: CreditCard, kidsHref: undefined, kidsDisabled: false },
+  { href: "/", label: "会員証", icon: CreditCard, kidsHref: undefined, kidsDisabled: false },
   { href: "/stamp", label: "スタンプ", icon: Stamp, kidsHref: undefined, kidsDisabled: false },
   { href: "/rewards", label: "特典", icon: Gift, kidsHref: undefined, kidsDisabled: false },
   { href: "/care", label: "ケア記録", icon: ClipboardCheck, kidsHref: undefined, kidsDisabled: true },

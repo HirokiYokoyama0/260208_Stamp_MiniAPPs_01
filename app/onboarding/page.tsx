@@ -22,7 +22,7 @@ export default function OnboardingPage() {
   const handleProfileSubmit = async () => {
     // バリデーション
     if (!ticketNumber.trim()) {
-      setError('診察券番号を入力してください');
+      setError('会員証番号を入力してください');
       return;
     }
 
@@ -46,7 +46,7 @@ export default function OnboardingPage() {
     setError('');
 
     try {
-      // 役割設定と同時に診察券番号・本名も保存
+      // 役割設定と同時に会員証番号・本名も保存
       const res = await fetch('/api/users/setup-role', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -128,16 +128,16 @@ export default function OnboardingPage() {
                 <h2 className="text-lg font-bold text-gray-800">患者情報の入力</h2>
               </div>
               <p className="text-sm text-gray-600">
-                診察券番号とお名前を入力してください
+                会員証番号とお名前を入力してください
               </p>
             </div>
 
             {/* 入力フォーム */}
             <div className="bg-white rounded-xl shadow-sm p-6 space-y-5">
-              {/* 診察券番号 */}
+              {/* 会員証番号 */}
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-700">
-                  診察券番号 <span className="text-red-500">*</span>
+                  会員証番号 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -147,7 +147,7 @@ export default function OnboardingPage() {
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  診察券に記載されている番号を入力してください
+                  会員証に記載されている番号を入力してください
                 </p>
               </div>
 
@@ -164,7 +164,7 @@ export default function OnboardingPage() {
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  診察券に記載されているお名前を入力してください
+                  会員証に記載されているお名前を入力してください
                 </p>
               </div>
             </div>
@@ -180,7 +180,7 @@ export default function OnboardingPage() {
             {/* 注意事項 */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-xs text-blue-800">
-                ※ 診察券番号をお持ちでない方は、受付でご登録をお願いします
+                ※ 会員証番号をお持ちでない方は、受付でご登録をお願いします
               </p>
             </div>
           </div>

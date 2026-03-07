@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 
 /**
  * DELETE /api/stamps/scan/delete-today
@@ -89,15 +90,32 @@ export async function POST(
 
     console.log(`🗑️ [Delete Today QR] 削除対象ID: ${idsToDelete.join(', ')}`);
 
-    // stamp_historyから本日のQRスキャンを削除（IDで直接指定）
-    // 削除時のトリガーで profiles.stamp_count が自動更新される
-    const { data: deleteResult, error: deleteError, count } = await supabase
-      .from("stamp_history")
-      .delete()
-      .in("id", idsToDelete)
-      .select();
+    // SERVICE_ROLE_KEY を使用してDELETEを実行（RLSをバイパス）
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    console.log(`📊 [Delete Today QR] 削除クエリ結果:`, { deleteResult, count, error: deleteError });
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("❌ Supabase環境変数が設定されていません");
+      return NextResponse.json(
+        {
+          success: false,
+          message: "サーバー設定エラー",
+          error: "Missing Supabase credentials",
+        },
+        { status: 500 }
+      );
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+    // stamp_historyから本日のQRスキャンを削除（IDで直接指定）
+    // 注意: DELETE トリガーは SUM(amount) で計算するため、正しく動作しない可能性がある
+    const { data: deleteResult, error: deleteError, count } = await supabaseAdmin
+      .from("stamp_history")
+      .delete({ count: 'exact' })
+      .in("id", idsToDelete);
+
+    console.log(`📊 [Delete Today QR] 削除クエリ結果:`, { count, error: deleteError });
 
     if (deleteError) {
       console.error('❌ [Delete Today QR] 削除エラー:', deleteError);
@@ -111,14 +129,27 @@ export async function POST(
       );
     }
 
-    // profiles.stamp_countはトリガーで自動更新されるため、再取得して確認
-    const { data: updatedProfile } = await supabase
-      .from("profiles")
-      .select("stamp_count")
-      .eq("id", userId)
-      .single();
+    // DELETE トリガーは SUM(amount) で計算するため、MAX(stamp_number) で再計算する
+    // 削除後の最大 stamp_number を取得
+    const { data: maxStampData } = await supabaseAdmin
+      .from("stamp_history")
+      .select("stamp_number")
+      .eq("user_id", userId)
+      .order("stamp_number", { ascending: false })
+      .limit(1);
 
-    const newStampCount = updatedProfile?.stamp_count || 0;
+    const newStampCount = maxStampData?.[0]?.stamp_number || 0;
+
+    // profiles.stamp_count を手動で更新（トリガーだけでは正しく計算されないため）
+    await supabaseAdmin
+      .from("profiles")
+      .update({
+        stamp_count: newStampCount,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", userId);
+
+    console.log(`🔧 [Delete Today QR] profiles.stamp_count を ${newStampCount} に強制更新しました`);
 
     console.log(`✅ [Delete Today QR] 削除成功: ${todayScans.length}件削除, -${totalAmount}ポイント, 新しい合計: ${newStampCount}`);
 

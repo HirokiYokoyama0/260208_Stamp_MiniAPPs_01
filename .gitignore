@@ -38,3 +38,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# development scripts (debugging only)
+/scripts/check-*.mjs
+/scripts/test-*.mjs
+/scripts/force-*.mjs
+/scripts/restore-*.mjs
+/scripts/verify-*.mjs

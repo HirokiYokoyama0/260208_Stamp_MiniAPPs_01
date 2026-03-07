@@ -95,13 +95,13 @@ export default function AddChildDialog({ isOpen, onClose, onSave }: AddChildDial
             />
           </div>
 
-          {/* 診察券番号入力 */}
+          {/* 会員証番号入力 */}
           <div>
             <label
               htmlFor="ticketNumber"
               className="mb-1 block text-sm font-medium text-gray-700"
             >
-              診察券番号
+              会員証番号
             </label>
             <input
               id="ticketNumber"

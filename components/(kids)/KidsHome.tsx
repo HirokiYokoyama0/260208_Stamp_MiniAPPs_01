@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 /**
- * 子供用ホームページ（診察券）
+ * 子供用ホームページ（会員証）
  *
  * デザイン要件:
  * - カラフルな背景（ピンク・イエロー・グリーン）
@@ -269,7 +269,7 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
         </p>
       </div>
 
-      {/* 診察券カード */}
+      {/* 会員証カード */}
       <div className="mx-auto max-w-md rounded-3xl border-4 border-white bg-white p-5 shadow-2xl mb-6">
         <h3 className="mb-3 text-center text-2xl font-bold text-kids-blue">
           🦷 しんさつけん

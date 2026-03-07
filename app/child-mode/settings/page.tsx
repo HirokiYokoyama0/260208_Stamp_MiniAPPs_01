@@ -173,7 +173,7 @@ export default function ChildModeSettingsPage() {
           />
         </div>
 
-        {/* 診察券番号入力カード */}
+        {/* 会員証番号入力カード */}
         <div className="bg-white rounded-3xl shadow-xl p-6 border-4 border-kids-blue">
           <div className="flex items-center gap-2 mb-4">
             <CreditCard className="text-kids-blue" size={28} />

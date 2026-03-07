@@ -117,7 +117,8 @@ export default function AdultHome() {
     if (isLoggedIn && profile) {
       saveUserProfile();
     }
-  }, [isLoggedIn, profile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, profile?.userId]);
 
   // 日付フォーマット関数
   const formatDate = (dateString: string | null): string => {
@@ -133,7 +134,7 @@ export default function AdultHome() {
     return `${year}年${month}月${day}日 ${hours}:${minutes}`;
   };
 
-  // 予約ボタン：診察券番号をコピーしてからアポツールを開く
+  // 予約ボタン：会員証番号をコピーしてからアポツールを開く
   const handleReservation = async () => {
     console.log("🔍 [DEBUG] handleReservation called", {
       displayTicketNumber,
@@ -142,7 +143,7 @@ export default function AdultHome() {
     });
 
     if (displayTicketNumber === "未登録") {
-      alert("診察券番号が登録されていません。受付でご登録をお願いします。");
+      alert("会員証番号が登録されていません。受付でご登録をお願いします。");
       return;
     }
 
@@ -176,12 +177,12 @@ export default function AdultHome() {
     }
 
     try {
-      // 診察券番号をクリップボードにコピー
+      // 会員証番号をクリップボードにコピー
       await navigator.clipboard.writeText(displayTicketNumber);
-      console.log("✅ 診察券番号をコピーしました:", displayTicketNumber);
+      console.log("✅ 会員証番号をコピーしました:", displayTicketNumber);
 
       // コピー成功メッセージを表示
-      alert(`診察券番号をコピーしました！\n予約画面で貼り付けてください。\n\n診察券番号: ${displayTicketNumber}`);
+      alert(`会員証番号をコピーしました！\n予約画面で貼り付けてください。\n\n会員証番号: ${displayTicketNumber}`);
 
       // アポツールを開く
       window.open("https://reservation.stransa.co.jp/5d62710843af2685c64352ed3eb9d043", "_blank");
@@ -213,15 +214,16 @@ export default function AdultHome() {
       const result = await response.json();
 
       if (result.success) {
+        // APIレスポンスの値を直接使用（fetchUserDataは呼ばない）
         setStampCount(result.stampCount);
+        setLastUpdated(new Date().toISOString());
         console.log("✅ スタッフによりスタンプ数を変更しました:", result);
         setShowStaffModal(false);
         const { fullStamps: updatedStamps } = calculateStampDisplay(result.stampCount);
         alert(
           `スタンプ数を更新しました！\n現在 ${updatedStamps}個`
         );
-        // 最新データを再取得
-        await fetchUserData(profile.userId);
+        // fetchUserDataは呼ばない（データベースのレプリカ遅延で古い値を取得する可能性があるため）
       } else {
         console.error("❌ スタンプ数変更失敗:", result.error);
         alert(result.message || "スタンプ数の更新に失敗しました");
@@ -292,7 +294,7 @@ export default function AdultHome() {
         <p className="mb-6 text-center text-gray-600">
           LINEでログインして
           <br />
-          デジタル診察券をご利用ください
+          デジタル会員証をご利用ください
         </p>
         <button
           type="button"
@@ -307,10 +309,10 @@ export default function AdultHome() {
 
   return (
     <div className="space-y-7 px-4 py-6">
-      {/* デジタル診察券カード */}
+      {/* デジタル会員証カード */}
       <section className="rounded-xl border border-gray-100 bg-gradient-to-br from-white to-gray-50/50 p-5 shadow-sm">
         <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-gray-400">
-          デジタル診察券
+          デジタル会員証
         </h2>
         <div className="space-y-3">
           <p className="text-2xl font-semibold text-gray-800">{displayName}</p>
@@ -320,7 +322,7 @@ export default function AdultHome() {
             </p>
           )}
           <p className="font-mono text-sm text-gray-600">
-            診察券番号: {displayTicketNumber}
+            会員証番号: {displayTicketNumber}
           </p>
           <p className="text-xs text-gray-500">
             最終アクセス: {formatDate(lastUpdated)}
@@ -343,7 +345,7 @@ export default function AdultHome() {
         </button>
         {displayTicketNumber === "未登録" && (
           <p className="mt-3 text-center text-xs text-amber-600">
-            ※ 予約には診察券番号の登録が必要です
+            ※ 予約には会員証番号の登録が必要です
           </p>
         )}
       </section>
@@ -371,12 +373,13 @@ export default function AdultHome() {
             try {
               const result = await addStamp(profile.userId, qrValue);
               if (result.success) {
+                // APIレスポンスの値を直接使用
                 setStampCount(result.stampCount || stampCount + 1);
+                setLastUpdated(new Date().toISOString());
                 console.log("✅ スタンプを付与しました:", result);
                 const { fullStamps: updatedStamps } = calculateStampDisplay(result.stampCount || stampCount + 1);
                 alert(`スタンプを取得しました！\n現在 ${updatedStamps}個`);
-                // 最新データを再取得
-                await fetchUserData(profile.userId);
+                // fetchUserDataは呼ばない（レプリカ遅延で古い値を取得する可能性があるため）
               } else {
                 console.error("❌ スタンプ付与失敗:", result.error);
                 alert(result.message || "スタンプの登録に失敗しました");

@@ -125,7 +125,7 @@ export default function SettingsPage() {
     }
 
     if (!editTicketNumber.trim()) {
-      alert('診察券番号を入力してください');
+      alert('会員証番号を入力してください');
       return;
     }
 
@@ -210,7 +210,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-700">
-                  診察券番号 <span className="text-red-500">*</span>
+                  会員証番号 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -247,7 +247,7 @@ export default function SettingsPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">診察券番号</span>
+                <span className="text-sm text-gray-600">会員証番号</span>
                 <span className="font-medium font-mono text-gray-800">
                   {ticketNumber || '未登録'}
                 </span>

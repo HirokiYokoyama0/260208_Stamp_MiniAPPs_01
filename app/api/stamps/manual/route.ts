@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 import { AddStampResponse } from "@/types/stamp";
 
 interface ManualStampRequest {
@@ -95,28 +96,51 @@ export async function POST(
       );
     }
 
-    // profilesテーブルのstamp_countを直接更新
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({
-        stamp_count: newStampCount,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", userId);
+    // スタンプ数を減らす場合、新しい値より大きいstamp_historyレコードを削除
+    // これにより、トリガーが MAX(stamp_number) を計算した際に新しい値になる
+    // 注: DELETEにはSERVICE_ROLE_KEYが必要（RLSポリシーでANON_KEYはDELETE不可）
+    if (newStampCount < currentStampCount) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (updateError) {
-      console.error("スタンプ数更新エラー:", updateError);
-      return NextResponse.json(
-        {
-          success: false,
-          message: "スタンプ数の更新に失敗しました",
-          error: updateError.message,
-        },
-        { status: 500 }
-      );
+      if (!supabaseUrl || !serviceRoleKey) {
+        console.error("❌ Supabase環境変数が設定されていません");
+        return NextResponse.json(
+          {
+            success: false,
+            message: "サーバー設定エラー",
+            error: "Missing Supabase credentials",
+          },
+          { status: 500 }
+        );
+      }
+
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+      const { error: deleteError, count } = await supabaseAdmin
+        .from("stamp_history")
+        .delete({ count: 'exact' })
+        .eq("user_id", userId)
+        .gt("stamp_number", newStampCount);
+
+      if (deleteError) {
+        console.error("過去の履歴削除エラー:", deleteError);
+        return NextResponse.json(
+          {
+            success: false,
+            message: "履歴の削除に失敗しました",
+            error: deleteError.message,
+          },
+          { status: 500 }
+        );
+      }
+
+      console.log(`🗑️ stamp_number > ${newStampCount} のレコードを ${count}件 削除しました`);
     }
 
     // 監査証跡を記録（stamp_historyに変更履歴を保存）
+    // この INSERT により trigger_update_profile_stamp_count が発火し、
+    // profiles.stamp_count が MAX(stamp_number) = newStampCount に更新される
     const now = new Date();
     const manualQrCodeId = `MANUAL-ADJUST-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
 
@@ -126,7 +150,7 @@ export async function POST(
         ? `スタッフ操作: +${changeAmount}個 (${currentStampCount} → ${newStampCount})`
         : `スタッフ操作: ${changeAmount}個 (${currentStampCount} → ${newStampCount})`;
 
-    await supabase.from("stamp_history").insert({
+    const { error: insertError } = await supabase.from("stamp_history").insert({
       user_id: userId,
       visit_date: now.toISOString(),
       stamp_number: newStampCount,
@@ -135,6 +159,39 @@ export async function POST(
       amount: changeAmount, // 変更量を記録
       notes: changeDescription,
     });
+
+    if (insertError) {
+      console.error("履歴挿入エラー:", insertError);
+      return NextResponse.json(
+        {
+          success: false,
+          message: "履歴の記録に失敗しました",
+          error: insertError.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    // トリガーが発火してprofiles.stamp_countを更新するが、
+    // DELETE後の状態によっては正しく計算されない可能性があるため、
+    // 念のため手動でも更新する
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (supabaseUrl && serviceRoleKey) {
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+      // stamp_countを強制的にnewStampCountに設定
+      await supabaseAdmin
+        .from("profiles")
+        .update({
+          stamp_count: newStampCount,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", userId);
+
+      console.log(`🔧 profiles.stamp_count を ${newStampCount} に強制更新しました`);
+    }
 
     console.log(
       `✅ スタッフによるスタンプ数変更成功: User ${userId}, ${currentStampCount} → ${newStampCount}`

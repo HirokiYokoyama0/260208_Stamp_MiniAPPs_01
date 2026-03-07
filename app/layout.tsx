@@ -3,7 +3,7 @@ import "./globals.css";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 export const metadata: Metadata = {
-  title: "つくばホワイト歯科｜デジタル診察券",
+  title: "つくばホワイト歯科｜デジタル会員証",
   description: "ハブラーシカと一緒に、スマートな通院を。",
 };
 

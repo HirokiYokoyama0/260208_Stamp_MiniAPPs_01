@@ -437,7 +437,7 @@ export default function FamilyManagePage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">診察券番号</label>
+                        <label className="block text-xs text-gray-600 mb-1">会員証番号</label>
                         <input
                           type="text"
                           defaultValue={member.ticket_number || ''}
@@ -490,7 +490,7 @@ export default function FamilyManagePage() {
                         </p>
                         {member.ticket_number && (
                           <p className="text-xs text-gray-400 mt-1">
-                            診察券: {member.ticket_number}
+                            会員証: {member.ticket_number}
                           </p>
                         )}
                       </div>
