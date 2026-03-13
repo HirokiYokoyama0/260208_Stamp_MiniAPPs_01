@@ -96,51 +96,10 @@ export async function POST(
       );
     }
 
-    // スタンプ数を減らす場合、新しい値より大きいstamp_historyレコードを削除
-    // これにより、トリガーが MAX(stamp_number) を計算した際に新しい値になる
-    // 注: DELETEにはSERVICE_ROLE_KEYが必要（RLSポリシーでANON_KEYはDELETE不可）
-    if (newStampCount < currentStampCount) {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-      if (!supabaseUrl || !serviceRoleKey) {
-        console.error("❌ Supabase環境変数が設定されていません");
-        return NextResponse.json(
-          {
-            success: false,
-            message: "サーバー設定エラー",
-            error: "Missing Supabase credentials",
-          },
-          { status: 500 }
-        );
-      }
-
-      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
-      const { error: deleteError, count } = await supabaseAdmin
-        .from("stamp_history")
-        .delete({ count: 'exact' })
-        .eq("user_id", userId)
-        .gt("stamp_number", newStampCount);
-
-      if (deleteError) {
-        console.error("過去の履歴削除エラー:", deleteError);
-        return NextResponse.json(
-          {
-            success: false,
-            message: "履歴の削除に失敗しました",
-            error: deleteError.message,
-          },
-          { status: 500 }
-        );
-      }
-
-      console.log(`🗑️ stamp_number > ${newStampCount} のレコードを ${count}件 削除しました`);
-    }
+    // 注: トリガーは MAX(stamp_number) を使うため、減らす操作には対応できない
+    // そのため、手動変更では stamp_history への記録後に profiles.stamp_count を直接更新する
 
     // 監査証跡を記録（stamp_historyに変更履歴を保存）
-    // この INSERT により trigger_update_profile_stamp_count が発火し、
-    // profiles.stamp_count が MAX(stamp_number) = newStampCount に更新される
     const now = new Date();
     const manualQrCodeId = `MANUAL-ADJUST-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
 
@@ -172,26 +131,28 @@ export async function POST(
       );
     }
 
-    // トリガーが発火してprofiles.stamp_countを更新するが、
-    // DELETE後の状態によっては正しく計算されない可能性があるため、
-    // 念のため手動でも更新する
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // profiles.stamp_count を直接更新する（トリガーは MAX を使うため減らす操作に対応できない）
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({
+        stamp_count: newStampCount,
+        updated_at: now.toISOString()
+      })
+      .eq("id", userId);
 
-    if (supabaseUrl && serviceRoleKey) {
-      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
-      // stamp_countを強制的にnewStampCountに設定
-      await supabaseAdmin
-        .from("profiles")
-        .update({
-          stamp_count: newStampCount,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", userId);
-
-      console.log(`🔧 profiles.stamp_count を ${newStampCount} に強制更新しました`);
+    if (updateError) {
+      console.error("プロフィール更新エラー:", updateError);
+      return NextResponse.json(
+        {
+          success: false,
+          message: "スタンプ数の更新に失敗しました",
+          error: updateError.message,
+        },
+        { status: 500 }
+      );
     }
+
+    console.log(`✅ profiles.stamp_count を ${currentStampCount} → ${newStampCount} に更新しました`);
 
     console.log(
       `✅ スタッフによるスタンプ数変更成功: User ${userId}, ${currentStampCount} → ${newStampCount}`
