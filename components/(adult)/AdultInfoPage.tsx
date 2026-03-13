@@ -22,17 +22,21 @@ export default function AdultInfoPage() {
         <div className="space-y-3 text-sm">
           <div className="flex items-start gap-3">
             <MapPin size={18} className="mt-0.5 text-gray-400" />
-            <div>
+            <div className="flex-1">
               <p className="font-medium text-gray-700">住所</p>
-              <a
-                href="https://maps.app.goo.gl/6pZvxqKZQj9K8XYT7"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-600 hover:text-primary hover:underline"
-              >
+              <p className="text-gray-600">
                 〒305-0822
                 <br />
                 茨城県つくば市苅間1885番地1
+              </p>
+              <a
+                href="https://maps.app.goo.gl/29Khi5oVAFKx5uiJ6"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
+                <MapPin size={16} />
+                地図を開く
               </a>
             </div>
           </div>

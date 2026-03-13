@@ -36,13 +36,17 @@ export default function KidsInfoPage() {
           <MapPin className="text-kids-green" size={20} />
           <h3 className="font-bold text-gray-800">ばしょ</h3>
         </div>
+        <p className="text-sm text-gray-700">
+          いばらきけん つくばし かりま 1885-1
+        </p>
         <a
-          href="https://maps.app.goo.gl/6pZvxqKZQj9K8XYT7"
+          href="https://maps.app.goo.gl/29Khi5oVAFKx5uiJ6"
           target="_blank"
           rel="noopener noreferrer"
-          className="block text-sm text-gray-700 hover:text-kids-green hover:underline"
+          className="mt-2 inline-flex items-center gap-1 text-sm font-bold text-kids-green hover:underline"
         >
-          いばらきけん つくばし かりま 1885-1
+          <MapPin size={16} />
+          ちずをひらく
         </a>
         <p className="mt-2 text-xs text-gray-500">
           くるまをとめるところが 13だいぶん あるよ
