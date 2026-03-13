@@ -16,7 +16,7 @@ export interface UserProfile {
   last_visit_date?: string | null; // 最終来院日時
 
   // 患者情報
-  ticket_number?: string | null; // 会員証番号
+  ticket_number?: string | null; // 診察券番号
   real_name?: string | null; // 本名（漢字）
 
   // 家族機能

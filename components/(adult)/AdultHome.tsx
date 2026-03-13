@@ -134,7 +134,7 @@ export default function AdultHome() {
     return `${year}年${month}月${day}日 ${hours}:${minutes}`;
   };
 
-  // 予約ボタン：会員証番号をコピーしてからアポツールを開く
+  // 予約ボタン：診察券番号をコピーしてからアポツールを開く
   const handleReservation = async () => {
     console.log("🔍 [DEBUG] handleReservation called", {
       displayTicketNumber,
@@ -143,7 +143,7 @@ export default function AdultHome() {
     });
 
     if (displayTicketNumber === "未登録") {
-      alert("会員証番号が登録されていません。受付でご登録をお願いします。");
+      alert("診察券番号が登録されていません。受付でご登録をお願いします。");
       return;
     }
 
@@ -177,12 +177,12 @@ export default function AdultHome() {
     }
 
     try {
-      // 会員証番号をクリップボードにコピー
+      // 診察券番号をクリップボードにコピー
       await navigator.clipboard.writeText(displayTicketNumber);
-      console.log("✅ 会員証番号をコピーしました:", displayTicketNumber);
+      console.log("✅ 診察券番号をコピーしました:", displayTicketNumber);
 
       // コピー成功メッセージを表示
-      alert(`会員証番号をコピーしました！\n予約画面で貼り付けてください。\n\n会員証番号: ${displayTicketNumber}`);
+      alert(`診察券番号をコピーしました！\n予約画面で貼り付けてください。\n\n診察券番号: ${displayTicketNumber}`);
 
       // アポツールを開く
       window.open("https://reservation.stransa.co.jp/5d62710843af2685c64352ed3eb9d043", "_blank");
@@ -322,7 +322,7 @@ export default function AdultHome() {
             </p>
           )}
           <p className="font-mono text-sm text-gray-600">
-            会員証番号: {displayTicketNumber}
+            診察券番号: {displayTicketNumber}
           </p>
           <p className="text-xs text-gray-500">
             最終アクセス: {formatDate(lastUpdated)}
@@ -345,7 +345,7 @@ export default function AdultHome() {
         </button>
         {displayTicketNumber === "未登録" && (
           <p className="mt-3 text-center text-xs text-amber-600">
-            ※ 予約には会員証番号の登録が必要です
+            ※ 予約には診察券番号の登録が必要です
           </p>
         )}
       </section>
