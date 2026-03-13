@@ -24,11 +24,16 @@ export default function AdultInfoPage() {
             <MapPin size={18} className="mt-0.5 text-gray-400" />
             <div>
               <p className="font-medium text-gray-700">住所</p>
-              <p className="text-gray-600">
+              <a
+                href="https://maps.app.goo.gl/6pZvxqKZQj9K8XYT7"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-600 hover:text-primary hover:underline"
+              >
                 〒305-0822
                 <br />
                 茨城県つくば市苅間1885番地1
-              </p>
+              </a>
             </div>
           </div>
           <div className="flex items-start gap-3">
