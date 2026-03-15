@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
 /**
- * DELETE /api/stamps/scan/delete-today
- * 本日のQRスキャンスタンプを削除（スタッフ用秘密機能）
+ * POST /api/stamps/scan/delete-today
+ * 本日のQRスタンプを削除（スタッフ用秘密機能）
+ *
+ * 対象：
+ * - カメラ用QRコード（直接LIFF起動）
+ * - アプリ内スキャン用（ペイロード型）
+ * 両方とも stamp_method = "qr" で統一
  *
  * 使用用途：
  * - テスト用に本日のQRスキャンをリセット
@@ -49,12 +54,12 @@ export async function POST(
 
     console.log(`🕐 [Delete Today QR] 日付範囲: ${startOfDay} ~ ${endOfDay}`);
 
-    // 本日のQRスキャンスタンプを検索
+    // 本日のQRスキャンスタンプを検索（カメラ用QR + アプリ内スキャン）
     const { data: todayScans, error: fetchError } = await supabase
       .from("stamp_history")
       .select("*")
       .eq("user_id", userId)
-      .eq("stamp_method", "qr_scan")
+      .eq("stamp_method", "qr") // 全QR方式で統一（"qr_scan" → "qr"）
       .gte("visit_date", startOfDay)
       .lte("visit_date", endOfDay);
 
@@ -74,14 +79,14 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          message: "本日のQRスキャン履歴がありません",
-          error: "No QR scans found today",
+          message: "本日のQRスタンプ履歴がありません",
+          error: "No QR stamps found today",
         },
         { status: 404 }
       );
     }
 
-    console.log(`📋 [Delete Today QR] 本日のスキャン履歴: ${todayScans.length}件`, todayScans);
+    console.log(`📋 [Delete Today QR] 本日のQRスタンプ履歴: ${todayScans.length}件`, todayScans);
 
     // 削除対象のスタンプ数を計算
     const totalAmount = todayScans.reduce((sum, scan) => sum + (scan.amount || 0), 0);
@@ -118,7 +123,7 @@ export async function POST(
     return NextResponse.json(
       {
         success: true,
-        message: `本日のQRスキャン ${todayScans.length}件を削除しました（-${totalAmount}ポイント）`,
+        message: `本日のQRスタンプ ${todayScans.length}件を削除しました（-${totalAmount}ポイント）`,
         deletedCount: todayScans.length,
       },
       { status: 200 }
