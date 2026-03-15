@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useLiff } from "@/hooks/useLiff";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import {
   fetchStampCount,
   fetchStampHistory,
@@ -22,11 +24,19 @@ const STAMP_GOAL = 10;
  */
 export default function KidsStampPage() {
   const { profile: liffProfile } = useLiff();
-  const { selectedChildId } = useViewMode();
+  const { viewMode, selectedChildId, setSelectedChildId, setViewMode } = useViewMode();
+  const router = useRouter();
   const [stampCount, setStampCount] = useState(0);
   const [stampHistory, setStampHistory] = useState<StampHistoryRecord[]>([]);
   const [displayName, setDisplayName] = useState("おともだち");
   const [isLoading, setIsLoading] = useState(true);
+
+  // 親の画面に戻る
+  const handleBackToParent = async () => {
+    setSelectedChildId(null);
+    await setViewMode('adult');
+    router.push('/');
+  };
 
   // プロフィールIDを決定（優先順位: selectedChildId > LIFFユーザー）
   const profileId = selectedChildId || liffProfile?.userId;
@@ -128,6 +138,19 @@ export default function KidsStampPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-kids-pink via-kids-yellow to-kids-blue px-4 py-6 font-kids">
+      {/* 親の画面に戻るボタン（キッズモードの場合に表示） */}
+      {viewMode === 'kids' && (
+        <div className="mb-4">
+          <button
+            onClick={handleBackToParent}
+            className="flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-bold text-kids-purple shadow-lg transition-all hover:bg-white active:scale-95"
+          >
+            <ArrowLeft size={20} />
+            おやの がめんに もどる
+          </button>
+        </div>
+      )}
+
       {/* ハブラーシカ */}
       <div className="mb-6 text-center">
         <Image

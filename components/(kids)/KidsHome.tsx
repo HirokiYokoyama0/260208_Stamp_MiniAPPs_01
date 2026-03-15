@@ -43,7 +43,7 @@ interface KidsHomeProps {
 
 export default function KidsHome({ profileOverride }: KidsHomeProps) {
   const { profile: liffProfile, isLoading: liffLoading } = useLiff();
-  const { selectedChildId, setSelectedChildId, setViewMode } = useViewMode();
+  const { viewMode, selectedChildId, setSelectedChildId, setViewMode } = useViewMode();
   const router = useRouter();
   const [stampCount, setStampCount] = useState(0);
   const [displayName, setDisplayName] = useState("おともだち");
@@ -239,8 +239,8 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-kids-pink via-kids-yellow to-kids-blue px-4 py-8 font-kids">
-      {/* 親の画面に戻るボタン（selectedChildIdが設定されている場合のみ表示） */}
-      {selectedChildId && (
+      {/* 親の画面に戻るボタン（キッズモードの場合に表示） */}
+      {viewMode === 'kids' && (
         <div className="mb-4">
           <button
             onClick={handleBackToParent}

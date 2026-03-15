@@ -2,15 +2,19 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useLiff } from '@/hooks/useLiff';
+import { useViewMode } from '@/contexts/ViewModeContext';
+import { useRouter } from 'next/navigation';
 import { useLatestRecord, useHistoryRecords } from '@/lib/dental-records';
 import ToothDiagram from '@/components/dental/ToothDiagram_v2';
 import TreatmentTimeline from '@/components/dental/TreatmentTimeline';
 import Legend from '@/components/dental/Legend';
 import { logEvent } from '@/lib/analytics';
-import { Lock } from 'lucide-react';
+import { Lock, ArrowLeft } from 'lucide-react';
 
 export default function KidsCarePage() {
   const { profile, isLoading, error } = useLiff();
+  const { viewMode, setSelectedChildId, setViewMode } = useViewMode();
+  const router = useRouter();
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -19,6 +23,13 @@ export default function KidsCarePage() {
 
   const { data: latestRecord, error: recordError } = useLatestRecord(profile?.userId);
   const { data: history, error: historyError } = useHistoryRecords(profile?.userId);
+
+  // 親の画面に戻る
+  const handleBackToParent = async () => {
+    setSelectedChildId(null);
+    await setViewMode('adult');
+    router.push('/');
+  };
 
   // 長押し開始ハンドラー
   const handlePressStart = () => {
@@ -156,6 +167,19 @@ export default function KidsCarePage() {
           <p className="text-xs text-kids-purple text-center mt-0.5">✨ きれいなはをたもとう ✨</p>
         </div>
       </header>
+
+      {/* 親の画面に戻るボタン（キッズモードの場合に表示） */}
+      {viewMode === 'kids' && (
+        <div className="px-4 pt-4">
+          <button
+            onClick={handleBackToParent}
+            className="flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-bold text-kids-purple shadow-lg transition-all hover:bg-white active:scale-95"
+          >
+            <ArrowLeft size={20} />
+            おやの がめんに もどる
+          </button>
+        </div>
+      )}
 
       {/* ロック画面オーバーレイ（キッズ風） */}
       {!isUnlocked && (
