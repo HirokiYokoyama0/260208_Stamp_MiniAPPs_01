@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { createClient } from "@supabase/supabase-js";
 
 /**
  * DELETE /api/stamps/scan/delete-today
@@ -90,27 +89,8 @@ export async function POST(
 
     console.log(`🗑️ [Delete Today QR] 削除対象ID: ${idsToDelete.join(', ')}`);
 
-    // SERVICE_ROLE_KEY を使用してDELETEを実行（RLSをバイパス）
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceRoleKey) {
-      console.error("❌ Supabase環境変数が設定されていません");
-      return NextResponse.json(
-        {
-          success: false,
-          message: "サーバー設定エラー",
-          error: "Missing Supabase credentials",
-        },
-        { status: 500 }
-      );
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
-    // stamp_historyから本日のQRスキャンを削除（IDで直接指定）
-    // 注意: DELETE トリガーは SUM(amount) で計算するため、正しく動作しない可能性がある
-    const { data: deleteResult, error: deleteError, count } = await supabaseAdmin
+    // stamp_historyから本日のQRスキャンを削除（通常のsupabaseクライアントを使用）
+    const { error: deleteError, count } = await supabase
       .from("stamp_history")
       .delete({ count: 'exact' })
       .in("id", idsToDelete);
@@ -129,9 +109,8 @@ export async function POST(
       );
     }
 
-    // DELETE トリガーは SUM(amount) で計算するため、MAX(stamp_number) で再計算する
-    // 削除後の最大 stamp_number を取得
-    const { data: maxStampData } = await supabaseAdmin
+    // 削除後の最大 stamp_number を取得して新しいスタンプ数を計算
+    const { data: maxStampData } = await supabase
       .from("stamp_history")
       .select("stamp_number")
       .eq("user_id", userId)
@@ -140,8 +119,8 @@ export async function POST(
 
     const newStampCount = maxStampData?.[0]?.stamp_number || 0;
 
-    // profiles.stamp_count を手動で更新（トリガーだけでは正しく計算されないため）
-    await supabaseAdmin
+    // profiles.stamp_count を直接更新（トリガーは MAX を使うため削除操作に対応できない）
+    const { error: updateError } = await supabase
       .from("profiles")
       .update({
         stamp_count: newStampCount,
@@ -149,7 +128,12 @@ export async function POST(
       })
       .eq("id", userId);
 
-    console.log(`🔧 [Delete Today QR] profiles.stamp_count を ${newStampCount} に強制更新しました`);
+    if (updateError) {
+      console.error('❌ [Delete Today QR] profiles更新エラー:', updateError);
+      // 削除は成功しているので、警告レベルで継続
+    }
+
+    console.log(`🔧 [Delete Today QR] profiles.stamp_count を ${newStampCount} に更新しました`);
 
     console.log(`✅ [Delete Today QR] 削除成功: ${todayScans.length}件削除, -${totalAmount}ポイント, 新しい合計: ${newStampCount}`);
 
