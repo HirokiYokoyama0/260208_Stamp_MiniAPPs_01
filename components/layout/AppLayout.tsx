@@ -22,7 +22,7 @@ const TABS = [
   { href: "/", label: "会員証", icon: CreditCard, kidsHref: undefined, kidsDisabled: false },
   { href: "/stamp", label: "スタンプ", icon: Stamp, kidsHref: undefined, kidsDisabled: false },
   { href: "/rewards", label: "特典", icon: Gift, kidsHref: undefined, kidsDisabled: false },
-  { href: "/care", label: "ケア記録", icon: ClipboardCheck, kidsHref: undefined, kidsDisabled: true },
+  { href: "/care", label: "ケア記録", icon: ClipboardCheck, kidsHref: undefined, kidsDisabled: false },
   { href: "/info", label: "医院情報", icon: Building2, kidsHref: undefined, kidsDisabled: false },
   { href: "/settings", label: "設定", icon: Settings, kidsHref: "/child-mode/settings", kidsDisabled: false },
 ];
