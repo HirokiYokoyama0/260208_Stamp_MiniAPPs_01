@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLiff } from "@/hooks/useLiff";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import Image from "next/image";
@@ -14,6 +14,7 @@ import {
 } from "@/lib/stamps";
 import { StampHistoryRecord } from "@/types/stamp";
 import { supabase } from "@/lib/supabase";
+import StaffPinModal from "@/components/shared/StaffPinModal";
 
 const STAMP_GOAL = 10;
 
@@ -30,12 +31,38 @@ export default function KidsStampPage() {
   const [stampHistory, setStampHistory] = useState<StampHistoryRecord[]>([]);
   const [displayName, setDisplayName] = useState("おともだち");
   const [isLoading, setIsLoading] = useState(true);
+  const [showStaffModal, setShowStaffModal] = useState(false);
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 親の画面に戻る
   const handleBackToParent = async () => {
     setSelectedChildId(null);
     await setViewMode('adult');
     router.push('/');
+  };
+
+  // 3回タップ検出（スタッフ操作モード起動）
+  const handleTripleTap = () => {
+    tapCountRef.current += 1;
+
+    // タイマーをクリア
+    if (tapTimerRef.current) {
+      clearTimeout(tapTimerRef.current);
+    }
+
+    // 3回タップでスタッフモーダルを開く
+    if (tapCountRef.current >= 3) {
+      console.log('[KidsStampPage] スタッフ操作モード起動（3回タップ検出）');
+      setShowStaffModal(true);
+      tapCountRef.current = 0;
+      return;
+    }
+
+    // 1秒以内に次のタップがなければリセット
+    tapTimerRef.current = setTimeout(() => {
+      tapCountRef.current = 0;
+    }, 1000);
   };
 
   // プロフィールIDを決定（優先順位: selectedChildId > LIFFユーザー）
@@ -303,12 +330,28 @@ export default function KidsStampPage() {
         )}
       </div>
 
-      {/* メッセージ */}
+      {/* メッセージ（3回タップでスタッフ操作モード） */}
       <div className="mt-6 text-center">
-        <p className="text-lg font-bold text-white drop-shadow-md">
-          つぎも まってるよ！がんばってね！
+        <p
+          className="text-lg font-bold text-white drop-shadow-md cursor-pointer select-none"
+          onClick={handleTripleTap}
+        >
+          まいにち はみがき がんばろうね！
         </p>
       </div>
+
+      {/* スタッフPINモーダル */}
+      {showStaffModal && profileId && (
+        <StaffPinModal
+          userId={profileId}
+          currentStampCount={stampCount}
+          onClose={() => setShowStaffModal(false)}
+          onSuccess={() => {
+            setShowStaffModal(false);
+            fetchData(); // データを再取得
+          }}
+        />
+      )}
     </div>
   );
 }
