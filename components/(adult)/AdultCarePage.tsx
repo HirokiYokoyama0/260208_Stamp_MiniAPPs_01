@@ -1,18 +1,77 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useLiff } from '@/hooks/useLiff';
 import { useLatestRecord, useHistoryRecords } from '@/lib/dental-records';
 import ToothDiagram from '@/components/dental/ToothDiagram_v2';
 import TreatmentTimeline from '@/components/dental/TreatmentTimeline';
 import Legend from '@/components/dental/Legend';
 import { logEvent } from '@/lib/analytics';
+import { Lock } from 'lucide-react';
 
 export default function AdultCarePage() {
   const { profile, isLoading, error } = useLiff();
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const holdStartTimeRef = useRef<number | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: latestRecord, error: recordError } = useLatestRecord(profile?.userId);
   const { data: history, error: historyError } = useHistoryRecords(profile?.userId);
+
+  // 長押し開始ハンドラー
+  const handlePressStart = () => {
+    if (isUnlocked) return;
+
+    holdStartTimeRef.current = Date.now();
+
+    // 3秒後にアンロック
+    holdTimerRef.current = setTimeout(() => {
+      setIsUnlocked(true);
+      setHoldProgress(100);
+
+      // アンロック成功ログ
+      logEvent({
+        eventName: 'care_record_unlocked',
+        userId: profile?.userId,
+        metadata: {
+          unlock_method: 'long_press',
+        },
+      });
+    }, 3000);
+
+    // プログレスバー更新（100ms毎）
+    progressIntervalRef.current = setInterval(() => {
+      if (holdStartTimeRef.current) {
+        const elapsed = Date.now() - holdStartTimeRef.current;
+        const progress = Math.min((elapsed / 3000) * 100, 100);
+        setHoldProgress(progress);
+      }
+    }, 100);
+  };
+
+  // 長押し終了ハンドラー
+  const handlePressEnd = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    holdStartTimeRef.current = null;
+    setHoldProgress(0);
+  };
+
+  // クリーンアップ
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    };
+  }, []);
 
   // ページ閲覧ログ
   useEffect(() => {
@@ -99,7 +158,7 @@ export default function AdultCarePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20 relative">
       {/* ヘッダー */}
       <header className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-10">
         <div className="px-4 py-3">
@@ -108,8 +167,47 @@ export default function AdultCarePage() {
         </div>
       </header>
 
+      {/* ロック画面オーバーレイ */}
+      {!isUnlocked && (
+        <div
+          className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm z-50 flex items-center justify-center"
+          onMouseDown={handlePressStart}
+          onMouseUp={handlePressEnd}
+          onMouseLeave={handlePressEnd}
+          onTouchStart={handlePressStart}
+          onTouchEnd={handlePressEnd}
+          onTouchCancel={handlePressEnd}
+        >
+          <div className="text-center px-6">
+            {/* ロックアイコン */}
+            <div className="mb-6">
+              <Lock size={64} className="text-white mx-auto" strokeWidth={1.5} />
+            </div>
+
+            {/* 説明文 */}
+            <h2 className="text-white text-xl font-bold mb-2">ケア記録を表示</h2>
+            <p className="text-gray-300 text-sm mb-6">
+              長押しして3秒間保持してください
+            </p>
+
+            {/* プログレスバー */}
+            <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden mx-auto">
+              <div
+                className="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-100 ease-linear"
+                style={{ width: `${holdProgress}%` }}
+              />
+            </div>
+
+            {/* 進捗テキスト */}
+            <p className="text-gray-400 text-xs mt-3">
+              {holdProgress > 0 ? `${Math.floor(holdProgress)}%` : '画面を長押ししてください'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* メインコンテンツ */}
-      <div className="px-4 pt-4">
+      <div className={`px-4 pt-4 ${!isUnlocked ? 'blur-sm pointer-events-none' : ''}`}>
         {/* 歯並び図 */}
         <section className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <ToothDiagram

@@ -1,18 +1,77 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useLiff } from '@/hooks/useLiff';
 import { useLatestRecord, useHistoryRecords } from '@/lib/dental-records';
 import ToothDiagram from '@/components/dental/ToothDiagram_v2';
 import TreatmentTimeline from '@/components/dental/TreatmentTimeline';
 import Legend from '@/components/dental/Legend';
 import { logEvent } from '@/lib/analytics';
+import { Lock } from 'lucide-react';
 
 export default function KidsCarePage() {
   const { profile, isLoading, error } = useLiff();
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const holdStartTimeRef = useRef<number | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: latestRecord, error: recordError } = useLatestRecord(profile?.userId);
   const { data: history, error: historyError } = useHistoryRecords(profile?.userId);
+
+  // 長押し開始ハンドラー
+  const handlePressStart = () => {
+    if (isUnlocked) return;
+
+    holdStartTimeRef.current = Date.now();
+
+    // 3秒後にアンロック
+    holdTimerRef.current = setTimeout(() => {
+      setIsUnlocked(true);
+      setHoldProgress(100);
+
+      // アンロック成功ログ
+      logEvent({
+        eventName: 'care_record_kids_unlocked',
+        userId: profile?.userId,
+        metadata: {
+          unlock_method: 'long_press',
+        },
+      });
+    }, 3000);
+
+    // プログレスバー更新（100ms毎）
+    progressIntervalRef.current = setInterval(() => {
+      if (holdStartTimeRef.current) {
+        const elapsed = Date.now() - holdStartTimeRef.current;
+        const progress = Math.min((elapsed / 3000) * 100, 100);
+        setHoldProgress(progress);
+      }
+    }, 100);
+  };
+
+  // 長押し終了ハンドラー
+  const handlePressEnd = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    holdStartTimeRef.current = null;
+    setHoldProgress(0);
+  };
+
+  // クリーンアップ
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    };
+  }, []);
 
   // 子供モードでのケア記録閲覧ログ
   useEffect(() => {
@@ -89,7 +148,7 @@ export default function KidsCarePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-kids-yellow to-kids-pink pb-20 font-kids">
+    <div className="min-h-screen bg-gradient-to-br from-kids-yellow to-kids-pink pb-20 font-kids relative">
       {/* ヘッダー */}
       <header className="bg-white/90 shadow-sm border-b border-kids-green/20 sticky top-0 z-10">
         <div className="px-4 py-3">
@@ -98,8 +157,47 @@ export default function KidsCarePage() {
         </div>
       </header>
 
+      {/* ロック画面オーバーレイ（キッズ風） */}
+      {!isUnlocked && (
+        <div
+          className="fixed inset-0 bg-kids-purple/80 backdrop-blur-sm z-50 flex items-center justify-center"
+          onMouseDown={handlePressStart}
+          onMouseUp={handlePressEnd}
+          onMouseLeave={handlePressEnd}
+          onTouchStart={handlePressStart}
+          onTouchEnd={handlePressEnd}
+          onTouchCancel={handlePressEnd}
+        >
+          <div className="text-center px-6">
+            {/* ロックアイコン */}
+            <div className="mb-6">
+              <Lock size={64} className="text-white mx-auto" strokeWidth={2} />
+            </div>
+
+            {/* 説明文（キッズ風） */}
+            <h2 className="text-white text-2xl font-bold mb-2">はのきろくをみる</h2>
+            <p className="text-kids-yellow text-base mb-6">
+              ながおしして 3びょう まってね
+            </p>
+
+            {/* プログレスバー（キッズ風カラフル） */}
+            <div className="w-64 h-4 bg-white/20 rounded-full overflow-hidden mx-auto border-2 border-white/30">
+              <div
+                className="h-full bg-gradient-to-r from-kids-yellow via-kids-pink to-kids-green transition-all duration-100 ease-linear"
+                style={{ width: `${holdProgress}%` }}
+              />
+            </div>
+
+            {/* 進捗テキスト */}
+            <p className="text-white text-sm mt-4">
+              {holdProgress > 0 ? `${Math.floor(holdProgress)}% 🌟` : 'がめんを ながおし してね 👆'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* メインコンテンツ */}
-      <div className="px-4 pt-4">
+      <div className={`px-4 pt-4 ${!isUnlocked ? 'blur-sm pointer-events-none' : ''}`}>
         {/* 歯並び図 */}
         <section className="bg-white/90 rounded-2xl p-4 shadow-lg border-2 border-kids-green/30">
           <ToothDiagram
