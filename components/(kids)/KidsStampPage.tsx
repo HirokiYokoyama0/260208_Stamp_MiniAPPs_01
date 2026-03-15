@@ -209,12 +209,18 @@ export default function KidsStampPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-100 via-blue-50 to-sky-100 px-4 py-6 font-kids">
+    <div
+      className="min-h-screen bg-gradient-to-b from-purple-100 via-blue-50 to-sky-100 px-4 py-6 font-kids"
+      onClick={handleTripleTap}
+    >
       {/* 親の画面に戻るボタン（キッズモードの場合に表示） */}
       {viewMode === 'kids' && (
         <div className="mb-4">
           <button
-            onClick={handleBackToParent}
+            onClick={(e) => {
+              e.stopPropagation(); // 親要素へのイベント伝播を止める
+              handleBackToParent();
+            }}
             className="flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-bold text-kids-purple shadow-lg transition-all hover:bg-white active:scale-95"
           >
             <ArrowLeft size={20} />
@@ -375,12 +381,9 @@ export default function KidsStampPage() {
         )}
       </div>
 
-      {/* メッセージ（3回タップでスタッフ操作モード） */}
+      {/* メッセージ */}
       <div className="mt-6 text-center">
-        <p
-          className="text-lg font-bold text-white drop-shadow-md cursor-pointer select-none"
-          onClick={handleTripleTap}
-        >
+        <p className="text-lg font-bold text-white drop-shadow-md">
           まいにち はみがき がんばろうね！
         </p>
       </div>
