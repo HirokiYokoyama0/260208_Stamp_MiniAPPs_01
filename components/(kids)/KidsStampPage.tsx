@@ -14,7 +14,7 @@ import {
 } from "@/lib/stamps";
 import { StampHistoryRecord } from "@/types/stamp";
 import { supabase } from "@/lib/supabase";
-import StaffPinModal from "@/components/shared/StaffPinModal";
+import { StaffPinModal } from "@/components/shared/StaffPinModal";
 
 const STAMP_GOAL = 10;
 
@@ -32,6 +32,7 @@ export default function KidsStampPage() {
   const [displayName, setDisplayName] = useState("おともだち");
   const [isLoading, setIsLoading] = useState(true);
   const [showStaffModal, setShowStaffModal] = useState(false);
+  const [isStaffLoading, setIsStaffLoading] = useState(false);
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -63,6 +64,47 @@ export default function KidsStampPage() {
     tapTimerRef.current = setTimeout(() => {
       tapCountRef.current = 0;
     }, 1000);
+  };
+
+  // スタッフ暗証番号による手動スタンプ数変更
+  const handleStaffSubmit = async (pin: string, newCount: number) => {
+    if (!profileId) {
+      alert("ユーザー情報が取得できませんでした");
+      return;
+    }
+
+    setIsStaffLoading(true);
+    try {
+      const response = await fetch("/api/stamps/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: profileId,
+          staffPin: pin,
+          newStampCount: newCount,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setStampCount(result.stampCount);
+        console.log("✅ スタッフによりスタンプ数を変更しました:", result);
+        setShowStaffModal(false);
+        const { fullStamps: updatedStamps } = calculateStampDisplay(result.stampCount);
+        alert(`スタンプ数を更新しました！\n現在 ${updatedStamps}個`);
+        // データを再取得
+        fetchData();
+      } else {
+        console.error("❌ スタンプ数変更失敗:", result.error);
+        alert(result.message || "スタンプ数の更新に失敗しました");
+      }
+    } catch (error) {
+      console.error("❌ スタンプ数変更エラー:", error);
+      alert("エラーが発生しました");
+    } finally {
+      setIsStaffLoading(false);
+    }
   };
 
   // プロフィールIDを決定（優先順位: selectedChildId > LIFFユーザー）
@@ -341,17 +383,14 @@ export default function KidsStampPage() {
       </div>
 
       {/* スタッフPINモーダル */}
-      {showStaffModal && profileId && (
-        <StaffPinModal
-          userId={profileId}
-          currentStampCount={stampCount}
-          onClose={() => setShowStaffModal(false)}
-          onSuccess={() => {
-            setShowStaffModal(false);
-            fetchData(); // データを再取得
-          }}
-        />
-      )}
+      <StaffPinModal
+        isOpen={showStaffModal}
+        onClose={() => setShowStaffModal(false)}
+        currentStampCount={stampCount}
+        onSubmit={handleStaffSubmit}
+        isLoading={isStaffLoading}
+        userId={profileId}
+      />
     </div>
   );
 }

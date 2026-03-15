@@ -422,7 +422,7 @@ export default function AdultHome() {
           {/* 個人のスタンプ数 */}
           <div className="space-y-3">
             <div className="text-center">
-              <p className="text-sm text-gray-600 mb-2">あなたの通院スタンプ</p>
+              <p className="text-sm text-gray-600 mb-2">あなたのスタンプ</p>
               <p className="text-4xl font-bold text-primary">{fullStamps}個</p>
             </div>
 
@@ -454,7 +454,7 @@ export default function AdultHome() {
             return (
               <div className="border-t border-gray-100 pt-4 space-y-3">
                 <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-2">家族全体の通院スタンプ</p>
+                  <p className="text-sm text-gray-600 mb-2">家族全体のスタンプ</p>
                   <p className="text-4xl font-bold text-purple-600">{familyStamps}個</p>
                 </div>
 
