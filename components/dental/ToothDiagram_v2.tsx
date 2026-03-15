@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { DentalRecord, DEFAULT_TOOTH_COLOR } from '@/types/dental-record';
-import { getToothShortName } from '@/lib/dental-tooth-names';
+import { getToothShortName, BABY_TEETH } from '@/lib/dental-tooth-names';
 import { logEvent } from '@/lib/analytics';
 
 type ToothDiagramProps = {
@@ -108,74 +108,132 @@ export default function ToothDiagram({ record, onToothClick, isKidsMode = false,
   // 奥歯（6,7,8番）は isMolar フラグを立てる
   const isMolar = (num: string) => {
     const lastDigit = num.charAt(1);
-    return lastDigit === '6' || lastDigit === '7' || lastDigit === '8';
+    return lastDigit === '6' || lastDigit === '7' || lastDigit === '8' || lastDigit === '4' || lastDigit === '5';
   };
 
   return (
     <div className="w-full px-2 py-1">
       {/* 背景の柔らかいグラデーション */}
       <div className="bg-gradient-to-b from-blue-50/30 to-transparent rounded-2xl p-3 pb-4">
-        {/* ヘッダーラベル */}
-        <div className="text-center text-xs text-slate-500 font-bold mb-2">
-          ✨ 上の歯 ✨
-        </div>
+        {isKidsMode ? (
+          // キッズモード：乳歯20本表示
+          <>
+            {/* ヘッダーラベル（キッズ風） */}
+            <div className="text-center text-xs text-kids-green font-bold mb-2 font-kids">
+              ✨ うえのは ✨
+            </div>
 
-        {/* 上顎（1段表示） */}
-        <div className="mb-6">
-          <div className="flex justify-center items-center gap-1.5">
-            <Tooth number="18" color={getToothColor('18')} onClick={() => handleToothClick('18')} isMolar={true} />
-            <Tooth number="17" color={getToothColor('17')} onClick={() => handleToothClick('17')} isMolar={true} />
-            <Tooth number="16" color={getToothColor('16')} onClick={() => handleToothClick('16')} isMolar={true} />
-            <Tooth number="15" color={getToothColor('15')} onClick={() => handleToothClick('15')} />
-            <Tooth number="14" color={getToothColor('14')} onClick={() => handleToothClick('14')} />
-            <Tooth number="13" color={getToothColor('13')} onClick={() => handleToothClick('13')} />
-            <Tooth number="12" color={getToothColor('12')} onClick={() => handleToothClick('12')} />
-            <Tooth number="11" color={getToothColor('11')} onClick={() => handleToothClick('11')} />
+            {/* 上顎乳歯（55-51, 61-65） */}
+            <div className="mb-6">
+              <div className="flex justify-center items-center gap-2">
+                <Tooth number="55" color={getToothColor('55')} onClick={() => handleToothClick('55')} isMolar={true} />
+                <Tooth number="54" color={getToothColor('54')} onClick={() => handleToothClick('54')} isMolar={true} />
+                <Tooth number="53" color={getToothColor('53')} onClick={() => handleToothClick('53')} />
+                <Tooth number="52" color={getToothColor('52')} onClick={() => handleToothClick('52')} />
+                <Tooth number="51" color={getToothColor('51')} onClick={() => handleToothClick('51')} />
 
-            {/* 中央線（細くて柔らかい） */}
-            <div className="w-0.5 h-6 bg-gradient-to-b from-slate-300 to-slate-200 rounded-full mx-1.5" />
+                {/* 中央線（キッズ風カラフル） */}
+                <div className="w-0.5 h-6 bg-gradient-to-b from-kids-yellow to-kids-pink rounded-full mx-2" />
 
-            <Tooth number="21" color={getToothColor('21')} onClick={() => handleToothClick('21')} />
-            <Tooth number="22" color={getToothColor('22')} onClick={() => handleToothClick('22')} />
-            <Tooth number="23" color={getToothColor('23')} onClick={() => handleToothClick('23')} />
-            <Tooth number="24" color={getToothColor('24')} onClick={() => handleToothClick('24')} />
-            <Tooth number="25" color={getToothColor('25')} onClick={() => handleToothClick('25')} />
-            <Tooth number="26" color={getToothColor('26')} onClick={() => handleToothClick('26')} isMolar={true} />
-            <Tooth number="27" color={getToothColor('27')} onClick={() => handleToothClick('27')} isMolar={true} />
-            <Tooth number="28" color={getToothColor('28')} onClick={() => handleToothClick('28')} isMolar={true} />
-          </div>
-        </div>
+                <Tooth number="61" color={getToothColor('61')} onClick={() => handleToothClick('61')} />
+                <Tooth number="62" color={getToothColor('62')} onClick={() => handleToothClick('62')} />
+                <Tooth number="63" color={getToothColor('63')} onClick={() => handleToothClick('63')} />
+                <Tooth number="64" color={getToothColor('64')} onClick={() => handleToothClick('64')} isMolar={true} />
+                <Tooth number="65" color={getToothColor('65')} onClick={() => handleToothClick('65')} isMolar={true} />
+              </div>
+            </div>
 
-        {/* 下顎ラベル */}
-        <div className="text-center text-xs text-slate-400 font-bold mb-2">
-          ✨ 下の歯 ✨
-        </div>
+            {/* 下顎ラベル（キッズ風） */}
+            <div className="text-center text-xs text-kids-purple font-bold mb-2 font-kids">
+              ✨ したのは ✨
+            </div>
 
-        {/* 下顎（1段表示） */}
-        <div>
-          <div className="flex justify-center items-center gap-1.5">
-            <Tooth number="48" color={getToothColor('48')} onClick={() => handleToothClick('48')} isMolar={true} />
-            <Tooth number="47" color={getToothColor('47')} onClick={() => handleToothClick('47')} isMolar={true} />
-            <Tooth number="46" color={getToothColor('46')} onClick={() => handleToothClick('46')} isMolar={true} />
-            <Tooth number="45" color={getToothColor('45')} onClick={() => handleToothClick('45')} />
-            <Tooth number="44" color={getToothColor('44')} onClick={() => handleToothClick('44')} />
-            <Tooth number="43" color={getToothColor('43')} onClick={() => handleToothClick('43')} />
-            <Tooth number="42" color={getToothColor('42')} onClick={() => handleToothClick('42')} />
-            <Tooth number="41" color={getToothColor('41')} onClick={() => handleToothClick('41')} />
+            {/* 下顎乳歯（85-81, 71-75） */}
+            <div>
+              <div className="flex justify-center items-center gap-2">
+                <Tooth number="85" color={getToothColor('85')} onClick={() => handleToothClick('85')} isMolar={true} />
+                <Tooth number="84" color={getToothColor('84')} onClick={() => handleToothClick('84')} isMolar={true} />
+                <Tooth number="83" color={getToothColor('83')} onClick={() => handleToothClick('83')} />
+                <Tooth number="82" color={getToothColor('82')} onClick={() => handleToothClick('82')} />
+                <Tooth number="81" color={getToothColor('81')} onClick={() => handleToothClick('81')} />
 
-            {/* 中央線（細くて柔らかい） */}
-            <div className="w-0.5 h-6 bg-gradient-to-b from-slate-200 to-slate-300 rounded-full mx-1.5" />
+                {/* 中央線（キッズ風カラフル） */}
+                <div className="w-0.5 h-6 bg-gradient-to-b from-kids-pink to-kids-yellow rounded-full mx-2" />
 
-            <Tooth number="31" color={getToothColor('31')} onClick={() => handleToothClick('31')} />
-            <Tooth number="32" color={getToothColor('32')} onClick={() => handleToothClick('32')} />
-            <Tooth number="33" color={getToothColor('33')} onClick={() => handleToothClick('33')} />
-            <Tooth number="34" color={getToothColor('34')} onClick={() => handleToothClick('34')} />
-            <Tooth number="35" color={getToothColor('35')} onClick={() => handleToothClick('35')} />
-            <Tooth number="36" color={getToothColor('36')} onClick={() => handleToothClick('36')} isMolar={true} />
-            <Tooth number="37" color={getToothColor('37')} onClick={() => handleToothClick('37')} isMolar={true} />
-            <Tooth number="38" color={getToothColor('38')} onClick={() => handleToothClick('38')} isMolar={true} />
-          </div>
-        </div>
+                <Tooth number="71" color={getToothColor('71')} onClick={() => handleToothClick('71')} />
+                <Tooth number="72" color={getToothColor('72')} onClick={() => handleToothClick('72')} />
+                <Tooth number="73" color={getToothColor('73')} onClick={() => handleToothClick('73')} />
+                <Tooth number="74" color={getToothColor('74')} onClick={() => handleToothClick('74')} isMolar={true} />
+                <Tooth number="75" color={getToothColor('75')} onClick={() => handleToothClick('75')} isMolar={true} />
+              </div>
+            </div>
+          </>
+        ) : (
+          // 大人モード：永久歯32本表示
+          <>
+            {/* ヘッダーラベル */}
+            <div className="text-center text-xs text-slate-500 font-bold mb-2">
+              ✨ 上の歯 ✨
+            </div>
+
+            {/* 上顎（1段表示） */}
+            <div className="mb-6">
+              <div className="flex justify-center items-center gap-1.5">
+                <Tooth number="18" color={getToothColor('18')} onClick={() => handleToothClick('18')} isMolar={true} />
+                <Tooth number="17" color={getToothColor('17')} onClick={() => handleToothClick('17')} isMolar={true} />
+                <Tooth number="16" color={getToothColor('16')} onClick={() => handleToothClick('16')} isMolar={true} />
+                <Tooth number="15" color={getToothColor('15')} onClick={() => handleToothClick('15')} />
+                <Tooth number="14" color={getToothColor('14')} onClick={() => handleToothClick('14')} />
+                <Tooth number="13" color={getToothColor('13')} onClick={() => handleToothClick('13')} />
+                <Tooth number="12" color={getToothColor('12')} onClick={() => handleToothClick('12')} />
+                <Tooth number="11" color={getToothColor('11')} onClick={() => handleToothClick('11')} />
+
+                {/* 中央線（細くて柔らかい） */}
+                <div className="w-0.5 h-6 bg-gradient-to-b from-slate-300 to-slate-200 rounded-full mx-1.5" />
+
+                <Tooth number="21" color={getToothColor('21')} onClick={() => handleToothClick('21')} />
+                <Tooth number="22" color={getToothColor('22')} onClick={() => handleToothClick('22')} />
+                <Tooth number="23" color={getToothColor('23')} onClick={() => handleToothClick('23')} />
+                <Tooth number="24" color={getToothColor('24')} onClick={() => handleToothClick('24')} />
+                <Tooth number="25" color={getToothColor('25')} onClick={() => handleToothClick('25')} />
+                <Tooth number="26" color={getToothColor('26')} onClick={() => handleToothClick('26')} isMolar={true} />
+                <Tooth number="27" color={getToothColor('27')} onClick={() => handleToothClick('27')} isMolar={true} />
+                <Tooth number="28" color={getToothColor('28')} onClick={() => handleToothClick('28')} isMolar={true} />
+              </div>
+            </div>
+
+            {/* 下顎ラベル */}
+            <div className="text-center text-xs text-slate-400 font-bold mb-2">
+              ✨ 下の歯 ✨
+            </div>
+
+            {/* 下顎（1段表示） */}
+            <div>
+              <div className="flex justify-center items-center gap-1.5">
+                <Tooth number="48" color={getToothColor('48')} onClick={() => handleToothClick('48')} isMolar={true} />
+                <Tooth number="47" color={getToothColor('47')} onClick={() => handleToothClick('47')} isMolar={true} />
+                <Tooth number="46" color={getToothColor('46')} onClick={() => handleToothClick('46')} isMolar={true} />
+                <Tooth number="45" color={getToothColor('45')} onClick={() => handleToothClick('45')} />
+                <Tooth number="44" color={getToothColor('44')} onClick={() => handleToothClick('44')} />
+                <Tooth number="43" color={getToothColor('43')} onClick={() => handleToothClick('43')} />
+                <Tooth number="42" color={getToothColor('42')} onClick={() => handleToothClick('42')} />
+                <Tooth number="41" color={getToothColor('41')} onClick={() => handleToothClick('41')} />
+
+                {/* 中央線（細くて柔らかい） */}
+                <div className="w-0.5 h-6 bg-gradient-to-b from-slate-200 to-slate-300 rounded-full mx-1.5" />
+
+                <Tooth number="31" color={getToothColor('31')} onClick={() => handleToothClick('31')} />
+                <Tooth number="32" color={getToothColor('32')} onClick={() => handleToothClick('32')} />
+                <Tooth number="33" color={getToothColor('33')} onClick={() => handleToothClick('33')} />
+                <Tooth number="34" color={getToothColor('34')} onClick={() => handleToothClick('34')} />
+                <Tooth number="35" color={getToothColor('35')} onClick={() => handleToothClick('35')} />
+                <Tooth number="36" color={getToothColor('36')} onClick={() => handleToothClick('36')} isMolar={true} />
+                <Tooth number="37" color={getToothColor('37')} onClick={() => handleToothClick('37')} isMolar={true} />
+                <Tooth number="38" color={getToothColor('38')} onClick={() => handleToothClick('38')} isMolar={true} />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* 選択された歯の情報表示（かわいいデザイン） */}
