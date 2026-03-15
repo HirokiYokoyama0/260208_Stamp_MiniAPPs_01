@@ -98,7 +98,7 @@ export async function POST(req: Request) {
         amount: amount,
         stamp_number: newStampNumber,
         visit_date: new Date().toISOString(),
-        location: location || null,
+        notes: location ? `QRスタンプ (${location})` : "QRスタンプ",
       })
       .select()
       .single();
