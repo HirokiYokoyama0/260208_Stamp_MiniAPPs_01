@@ -2,7 +2,9 @@
 -- スタンプ履歴テーブル: DELETE/UPDATEポリシー追加
 -- ============================================
 -- 作成日: 2026-02-24
--- 目的: RLSバイパスを不要にするため、DELETEポリシーを追加
+-- 目的: RLSバイパスを不要にするため、DELETE/UPDATEポリシーを追加
+-- 検討: Doc/016_stamp_history_DELETEポリシー_検討.md
+-- 注: 削除時トリガーの stamp_count 計算は 008 の INSERT トリガーと統一（MAX(stamp_number)）
 -- ============================================
 
 -- 既存のポリシーを削除（再実行可能にするため）
@@ -27,16 +29,16 @@ CREATE POLICY "allow_public_update"
 -- ============================================
 
 -- スタンプ履歴が削除されたらprofilesテーブルを自動更新
--- 注: stamp_count は SUM(amount) で計算（10倍整数システム対応）
+-- 注: 計算式は 008 の INSERT トリガー(update_profile_stamp_count) と統一する
 CREATE OR REPLACE FUNCTION update_profile_on_stamp_delete()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- 削除されたユーザーのスタンプ数を再計算
+  -- 削除されたユーザーのスタンプ数を再計算（残り行のみで計算）
   UPDATE profiles
   SET
-    -- stamp_count = 全履歴の amount の合計（10倍整数システム）
+    -- stamp_count = 残り履歴の MAX(stamp_number)（008 の INSERT トリガーと同一定義）
     stamp_count = (
-      SELECT COALESCE(SUM(amount), 0)
+      SELECT COALESCE(MAX(stamp_number), 0)
       FROM stamp_history
       WHERE user_id = OLD.user_id
     ),

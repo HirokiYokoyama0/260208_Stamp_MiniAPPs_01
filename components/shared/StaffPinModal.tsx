@@ -74,11 +74,21 @@ export function StaffPinModal({
 
   // スタンプ数の増減
   const incrementCount = () => {
-    setNewStampCount((prev) => Math.min(prev + 1, 999)); // 最大999個
+    setNewStampCount((prev) => Math.min(prev + 1, 30000)); // 最大30000個
   };
 
   const decrementCount = () => {
     setNewStampCount((prev) => Math.max(prev - 1, 0)); // 最小0個
+  };
+
+  // スタンプ数の直接入力
+  const handleDirectInput = (value: string) => {
+    const numValue = parseInt(value, 10);
+    if (isNaN(numValue)) {
+      setNewStampCount(0);
+    } else {
+      setNewStampCount(Math.min(Math.max(numValue, 0), 30000)); // 0〜30000の範囲
+    }
   };
 
   // 本日のQRスキャン削除
@@ -206,23 +216,29 @@ export function StaffPinModal({
             {/* スタンプ数調整 */}
             <div className="mb-6">
               <label className="mb-2 block text-sm font-medium text-gray-700">
-                新しいスタンプ数
+                新しいスタンプ数（0〜30000）
               </label>
               <div className="flex items-center gap-3">
                 <button
                   onClick={decrementCount}
                   disabled={isLoading || newStampCount <= 0}
-                  className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Minus size={20} />
                 </button>
-                <div className="flex-1 rounded-lg border-2 border-primary bg-primary/5 py-3 text-center text-3xl font-bold text-primary">
-                  {newStampCount}
-                </div>
+                <input
+                  type="number"
+                  min="0"
+                  max="30000"
+                  value={newStampCount}
+                  onChange={(e) => handleDirectInput(e.target.value)}
+                  disabled={isLoading}
+                  className="flex-1 rounded-lg border-2 border-primary bg-primary/5 py-3 text-center text-3xl font-bold text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-gray-100"
+                />
                 <button
                   onClick={incrementCount}
-                  disabled={isLoading || newStampCount >= 999}
-                  className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isLoading || newStampCount >= 30000}
+                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Plus size={20} />
                 </button>

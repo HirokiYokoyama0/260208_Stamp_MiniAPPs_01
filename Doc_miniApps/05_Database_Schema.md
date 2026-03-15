@@ -447,7 +447,7 @@ LIMIT 10;
 **処理内容:**
 ```sql
 -- stamp_count を MAX(stamp_number) で再計算
--- visit_count を COUNT(*) で再計算
+-- visit_count を COUNT(*) WHERE amount = 10 で再計算（通常来院のみカウント）
 -- last_visit_date を MAX(visit_date) で再計算
 -- updated_at を NOW() で更新
 -- レコードが0件の場合はすべて 0 または NULL にリセット
