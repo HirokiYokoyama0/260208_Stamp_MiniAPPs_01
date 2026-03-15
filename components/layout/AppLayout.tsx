@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -38,6 +38,74 @@ function BottomNavigation() {
   const { viewMode, selectedChildId } = useViewMode();
   const isKidsMode = viewMode === 'kids' && selectedChildId !== null;
 
+  // ケア記録タブのロック状態管理
+  const [isCareUnlockedAdult, setIsCareUnlockedAdult] = useState(false);
+  const [isCareUnlockedKids, setIsCareUnlockedKids] = useState(false);
+  const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [pressProgress, setPressProgress] = useState(0);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // LocalStorageからロック状態を復元
+  useEffect(() => {
+    const adultUnlocked = localStorage.getItem('care_unlocked_adult') === 'true';
+    const kidsUnlocked = localStorage.getItem('care_unlocked_kids') === 'true';
+    setIsCareUnlockedAdult(adultUnlocked);
+    setIsCareUnlockedKids(kidsUnlocked);
+  }, []);
+
+  // 3秒長押し開始
+  const handleCareTabPressStart = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setPressProgress(0);
+
+    // プログレス更新（30回/秒 = 3秒で100%）
+    progressIntervalRef.current = setInterval(() => {
+      setPressProgress((prev) => {
+        if (prev >= 100) {
+          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+          return 100;
+        }
+        return prev + (100 / 90); // 3000ms / (1000ms/30) = 90ステップ
+      });
+    }, 33); // 約30fps
+
+    // 3秒後にアンロック
+    pressTimerRef.current = setTimeout(() => {
+      if (isKidsMode) {
+        setIsCareUnlockedKids(true);
+        localStorage.setItem('care_unlocked_kids', 'true');
+        console.log('[AppLayout] キッズモード: ケア記録タブをアンロック');
+      } else {
+        setIsCareUnlockedAdult(true);
+        localStorage.setItem('care_unlocked_adult', 'true');
+        console.log('[AppLayout] 大人モード: ケア記録タブをアンロック');
+      }
+      setPressProgress(0);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    }, 3000);
+  };
+
+  // 長押し中断
+  const handleCareTabPressEnd = () => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    setPressProgress(0);
+  };
+
+  // クリーンアップ
+  useEffect(() => {
+    return () => {
+      if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    };
+  }, []);
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-100 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
       <div className="flex items-center justify-around px-1 py-2">
@@ -45,17 +113,37 @@ function BottomNavigation() {
           // 子供モードかつkidsHrefが設定されている場合は専用リンクを使用
           const actualHref = isKidsMode && kidsHref ? kidsHref : href;
           const isActive = pathname === actualHref || (actualHref !== "/" && pathname.startsWith(actualHref));
-          const isDisabled = isKidsMode && kidsDisabled;
 
-          // キッズモードで無効化されたタブは押せない表示にする
-          if (isDisabled) {
+          // ケア記録タブの特別処理
+          const isCareTab = href === "/care";
+          const isCareUnlocked = isKidsMode ? isCareUnlockedKids : isCareUnlockedAdult;
+          const isLocked = isCareTab && !isCareUnlocked;
+
+          // ロック中のケア記録タブ
+          if (isLocked) {
             return (
               <div
                 key={href}
-                className="flex flex-1 flex-col items-center gap-1 px-2 py-2 opacity-35 cursor-not-allowed text-gray-400"
+                className="relative flex flex-1 flex-col items-center gap-1 px-2 py-2 opacity-35 cursor-pointer text-gray-400"
+                onMouseDown={handleCareTabPressStart}
+                onMouseUp={handleCareTabPressEnd}
+                onMouseLeave={handleCareTabPressEnd}
+                onTouchStart={handleCareTabPressStart}
+                onTouchEnd={handleCareTabPressEnd}
+                onTouchCancel={handleCareTabPressEnd}
               >
                 <Icon size={20} strokeWidth={1.8} />
                 <span className="text-[10px] font-medium leading-tight">{label}</span>
+
+                {/* プログレスバー */}
+                {pressProgress > 0 && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all duration-100"
+                      style={{ width: `${pressProgress}%` }}
+                    />
+                  </div>
+                )}
               </div>
             );
           }
