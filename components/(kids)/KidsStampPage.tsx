@@ -46,6 +46,7 @@ export default function KidsStampPage() {
   // 3回タップ検出（スタッフ操作モード起動）
   const handleTripleTap = () => {
     tapCountRef.current += 1;
+    console.log(`[KidsStampPage] タップ検出 (${tapCountRef.current}/3)`);
 
     // タイマーをクリア
     if (tapTimerRef.current) {
@@ -55,6 +56,7 @@ export default function KidsStampPage() {
     // 3回タップでスタッフモーダルを開く
     if (tapCountRef.current >= 3) {
       console.log('[KidsStampPage] スタッフ操作モード起動（3回タップ検出）');
+      alert('スタッフモード起動'); // デバッグ用
       setShowStaffModal(true);
       tapCountRef.current = 0;
       return;
@@ -62,6 +64,7 @@ export default function KidsStampPage() {
 
     // 1秒以内に次のタップがなければリセット
     tapTimerRef.current = setTimeout(() => {
+      console.log('[KidsStampPage] タップカウントをリセット');
       tapCountRef.current = 0;
     }, 1000);
   };
