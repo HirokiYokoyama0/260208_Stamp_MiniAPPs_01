@@ -251,7 +251,9 @@ export const getStampMethodLabel = (
   stampMethod: StampHistoryRecord["stamp_method"]
 ): string => {
   switch (stampMethod) {
-    case "qr_scan":
+    case "qr":
+      return "来院（QRコード）";
+    case "qr_scan": // 旧仕様（後方互換性のため残す）
       return "来院（QRコード）";
     case "manual_admin":
       return "スタッフ操作";
@@ -275,7 +277,9 @@ export const getStampMethodIcon = (
   stampMethod: StampHistoryRecord["stamp_method"]
 ): "QrCode" | "User" | "Package" | "FileText" => {
   switch (stampMethod) {
-    case "qr_scan":
+    case "qr":
+      return "QrCode";
+    case "qr_scan": // 旧仕様（後方互換性のため残す）
       return "QrCode";
     case "manual_admin":
       return "User";
