@@ -1,11 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { Settings, MapPin, Clock, Phone, ExternalLink } from "lucide-react";
+import { useViewMode } from "@/contexts/ViewModeContext";
+import { useRouter } from "next/navigation";
+import { Settings, MapPin, Clock, Phone, ExternalLink, ArrowLeft } from "lucide-react";
 
 export default function KidsInfoPage() {
+  const { viewMode, setSelectedChildId, setViewMode } = useViewMode();
+  const router = useRouter();
+
+  // 親の画面に戻る
+  const handleBackToParent = async () => {
+    setSelectedChildId(null);
+    await setViewMode('adult');
+    router.push('/');
+  };
+
   return (
     <div className="px-4 py-6 font-kids">
+      {/* 親の画面に戻るボタン（キッズモードの場合に表示） */}
+      {viewMode === 'kids' && (
+        <div className="mb-4">
+          <button
+            onClick={handleBackToParent}
+            className="flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-bold text-kids-purple shadow-lg transition-all hover:bg-white active:scale-95"
+          >
+            <ArrowLeft size={20} />
+            おやの がめんに もどる
+          </button>
+        </div>
+      )}
+
       {/* せってい */}
       <section className="mb-5">
         <Link
