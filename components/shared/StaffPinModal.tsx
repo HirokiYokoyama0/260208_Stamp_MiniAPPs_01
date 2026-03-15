@@ -244,7 +244,7 @@ export function StaffPinModal({
                 </button>
                 <button
                   onClick={handleUpdate}
-                  disabled={isLoading || isDeletingQR}
+                  disabled={isLoading || isDeletingQR || newStampCount === currentStampCount}
                   className="flex-1 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isLoading ? "処理中..." : "更新"}
@@ -253,13 +253,20 @@ export function StaffPinModal({
 
               {/* 本日のQRスキャン削除ボタン */}
               {userId && (
-                <button
-                  onClick={handleDeleteTodayQR}
-                  disabled={isLoading || isDeletingQR}
-                  className="w-full rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isDeletingQR ? "削除中..." : "🗑️ 本日のQRスキャンを削除"}
-                </button>
+                <>
+                  <div className="border-t border-gray-200 pt-3">
+                    <p className="mb-2 text-xs text-gray-500">
+                      ⚠️ 削除操作は別途実行されます（スタンプ数変更とは独立）
+                    </p>
+                    <button
+                      onClick={handleDeleteTodayQR}
+                      disabled={isLoading || isDeletingQR}
+                      className="w-full rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isDeletingQR ? "削除中..." : "🗑️ 本日のQRスキャンを削除"}
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </>

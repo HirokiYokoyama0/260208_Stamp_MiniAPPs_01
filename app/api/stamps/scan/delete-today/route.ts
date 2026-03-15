@@ -109,33 +109,11 @@ export async function POST(
       );
     }
 
-    // 削除後の最大 stamp_number を取得して新しいスタンプ数を計算
-    const { data: maxStampData } = await supabase
-      .from("stamp_history")
-      .select("stamp_number")
-      .eq("user_id", userId)
-      .order("stamp_number", { ascending: false })
-      .limit(1);
+    // DELETEトリガー（trigger_update_profile_on_stamp_delete）が自動的に
+    // profiles.stamp_count, visit_count, last_visit_date を再計算します
+    // そのため、手動でのUPDATEは不要です
 
-    const newStampCount = maxStampData?.[0]?.stamp_number || 0;
-
-    // profiles.stamp_count を直接更新（トリガーは MAX を使うため削除操作に対応できない）
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({
-        stamp_count: newStampCount,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", userId);
-
-    if (updateError) {
-      console.error('❌ [Delete Today QR] profiles更新エラー:', updateError);
-      // 削除は成功しているので、警告レベルで継続
-    }
-
-    console.log(`🔧 [Delete Today QR] profiles.stamp_count を ${newStampCount} に更新しました`);
-
-    console.log(`✅ [Delete Today QR] 削除成功: ${todayScans.length}件削除, -${totalAmount}ポイント, 新しい合計: ${newStampCount}`);
+    console.log(`✅ [Delete Today QR] 削除成功: ${todayScans.length}件削除, -${totalAmount}ポイント`);
 
     return NextResponse.json(
       {
