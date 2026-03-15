@@ -117,7 +117,7 @@ export default function KidsStampPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-gradient-to-br from-kids-pink via-kids-yellow to-kids-blue px-4 py-6 font-kids">
+      <div className="flex min-h-[60vh] items-center justify-center bg-gradient-to-b from-purple-100 via-blue-50 to-sky-100 px-4 py-6 font-kids">
         <div className="text-center">
           <div className="mb-4 inline-block h-16 w-16 animate-spin rounded-full border-4 border-white border-t-transparent" />
           <p className="text-xl font-bold text-white">よみこみちゅう...</p>
@@ -127,15 +127,16 @@ export default function KidsStampPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-kids-pink via-kids-yellow to-kids-blue px-4 py-6 font-kids">
+    <div className="min-h-screen bg-gradient-to-b from-purple-100 via-blue-50 to-sky-100 px-4 py-6 font-kids">
       {/* ハブラーシカ */}
       <div className="mb-6 text-center">
-        <Image
-          src="/images/haburashika.jpg"
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/はぶらしか正式.png"
           alt="ハブラーシカ"
-          width={100}
-          height={100}
-          className="mx-auto rounded-full border-4 border-white shadow-2xl"
+          width={120}
+          height={120}
+          className="mx-auto drop-shadow-lg"
         />
         <h2 className="mt-3 text-2xl font-bold text-white drop-shadow-lg">
           {displayName}さんの スタンプ

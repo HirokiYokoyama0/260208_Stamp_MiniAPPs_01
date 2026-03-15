@@ -48,7 +48,7 @@ export default function KidsCarePage() {
   // ローディング状態
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-kids-yellow to-kids-pink">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-purple-100 via-blue-50 to-sky-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-kids-green mx-auto mb-4"></div>
           <p className="text-kids-green text-sm font-kids">よみこみちゅう...</p>
@@ -60,7 +60,7 @@ export default function KidsCarePage() {
   // エラー状態
   if (error || !profile) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-kids-yellow to-kids-pink p-4">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-purple-100 via-blue-50 to-sky-100 p-4">
         <div className="text-center bg-white p-6 rounded-2xl shadow-lg">
           <p className="text-4xl mb-3">😢</p>
           <p className="text-kids-green font-bold mb-2">エラーがおきました</p>
@@ -89,7 +89,7 @@ export default function KidsCarePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-kids-yellow to-kids-pink pb-20 font-kids">
+    <div className="min-h-screen bg-gradient-to-b from-purple-100 via-blue-50 to-sky-100 pb-20 font-kids">
       {/* ヘッダー */}
       <header className="bg-white/90 shadow-sm border-b border-kids-green/20 sticky top-0 z-10">
         <div className="px-4 py-3">

@@ -20,12 +20,12 @@ export default {
           light: "#E8D48B",
           dark: "#B8960C",
         },
-        // 子供用カラーパレット
-        "kids-pink": "#FF6B9D",
-        "kids-yellow": "#FFD93D",
-        "kids-green": "#6BCF7F",
-        "kids-blue": "#4ECDC4",
-        "kids-purple": "#A78BFA",
+        // 子供用カラーパレット（パステル）
+        "kids-pink": "#FFB5C8",
+        "kids-yellow": "#FFE4A8",
+        "kids-green": "#A8DEBA",
+        "kids-blue": "#A8D8E8",
+        "kids-purple": "#C4B5E0",
       },
       fontFamily: {
         sans: [
@@ -36,7 +36,7 @@ export default {
           "sans-serif",
         ],
         // 子供用フォント（丸ゴシック）
-        kids: ['"M PLUS Rounded 1c"', "ui-rounded", "sans-serif"],
+        kids: ['"Zen Maru Gothic"', "ui-rounded", "sans-serif"],
       },
     },
   },

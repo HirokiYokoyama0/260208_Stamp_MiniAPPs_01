@@ -228,7 +228,7 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
 
   if (isLoading || (liffLoading && !profileOverride)) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-gradient-to-br from-kids-pink via-kids-yellow to-kids-blue font-kids">
+      <div className="flex min-h-[60vh] items-center justify-center bg-gradient-to-b from-purple-100 via-blue-50 to-sky-100 font-kids">
         <div className="text-center">
           <div className="mb-4 inline-block h-16 w-16 animate-spin rounded-full border-4 border-white border-t-transparent" />
           <p className="text-xl font-bold text-white">よみこみちゅう...</p>
@@ -238,7 +238,7 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-kids-pink via-kids-yellow to-kids-blue px-4 py-8 font-kids">
+    <div className="min-h-screen bg-gradient-to-b from-purple-100 via-blue-50 to-sky-100 px-4 py-8 font-kids">
       {/* 親の画面に戻るボタン（selectedChildIdが設定されている場合のみ表示） */}
       {selectedChildId && (
         <div className="mb-4">
@@ -254,12 +254,13 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
 
       {/* ハブラーシカ */}
       <div className="mb-6 text-center">
-        <Image
-          src="/images/haburashika.jpg"
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/haburasika２.png"
           alt="ハブラーシカ"
           width={120}
           height={120}
-          className="mx-auto rounded-full border-4 border-white shadow-2xl"
+          className="mx-auto drop-shadow-lg"
         />
         <h2 className="mt-4 text-3xl font-bold text-white drop-shadow-lg">
           こんにちは！

@@ -41,7 +41,7 @@ function renderSymbol(sym: string, size: number = 44) {
   if (sym === TOOTH_SYMBOL) {
     return (
       <Image
-        src="/images/tooth.png"
+        src="/images/すろっとじか.png"
         alt="歯"
         width={size}
         height={size}
@@ -247,6 +247,29 @@ function playWinSound(isJackpot: boolean) {
 }
 
 // ─── メインページ ────────────────────────────────────────────
+// 1日のプレイ回数をlocalStorageで管理
+const DAILY_LIMIT = 2;
+const SLOT_PLAY_KEY = "slot_plays";
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+}
+
+function getTodayPlays(): number {
+  try {
+    const data = JSON.parse(localStorage.getItem(SLOT_PLAY_KEY) || "{}");
+    return data[getTodayKey()] || 0;
+  } catch { return 0; }
+}
+
+function incrementTodayPlays() {
+  try {
+    const data = JSON.parse(localStorage.getItem(SLOT_PLAY_KEY) || "{}");
+    data[getTodayKey()] = (data[getTodayKey()] || 0) + 1;
+    localStorage.setItem(SLOT_PLAY_KEY, JSON.stringify(data));
+  } catch { /* ignore */ }
+}
+
 export default function SlotPage() {
   const { profile } = useLiff();
   // selectedChildId がある場合（子供の画面経由）はその子のIDにスタンプを付与する
@@ -267,10 +290,24 @@ export default function SlotPage() {
   const [stampAwarded, setStampAwarded] = useState<number | null>(null);
   const [isAwarding, setIsAwarding] = useState(false);
 
+  // 1日の回数制限
+  const [dailyLimitReached, setDailyLimitReached] = useState(false);
+  const [showEndMessage, setShowEndMessage] = useState(false);
+  // 隠し機能: 3回タップで解除
+  const secretTapRef = useRef(0);
+  const secretTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // StrictMode の二重実行対策: ref でリール停止状態と付与状態を管理
   const stoppedReelsRef = useRef<(string | null)[]>([null, null, null]);
   const isAwardingRef = useRef(false);
   const reelRefs = useRef<(DrumReelHandle | null)[]>([null, null, null]);
+
+  // 初期化時に回数チェック
+  useEffect(() => {
+    if (getTodayPlays() >= DAILY_LIMIT) {
+      setDailyLimitReached(true);
+    }
+  }, []);
 
   useEffect(() => {
     logEvent({ eventName: "slot_game_open", userId: profile?.userId });
@@ -326,6 +363,16 @@ export default function SlotPage() {
       }
       setSpinning(false);
       awardSlotStamps(stampsWon);
+
+      // プレイ回数をインクリメント → 制限チェック
+      incrementTodayPlays();
+      if (getTodayPlays() >= DAILY_LIMIT) {
+        // 結果表示後に終了メッセージを出す
+        setTimeout(() => {
+          setShowEndMessage(true);
+          setDailyLimitReached(true);
+        }, 2500);
+      }
     },
     [profile?.userId, awardSlotStamps]
   );
@@ -343,7 +390,7 @@ export default function SlotPage() {
   );
 
   const spin = () => {
-    if (spinning) return;
+    if (spinning || dailyLimitReached) return;
     // 次のスピンのために ref をリセット
     stoppedReelsRef.current = [null, null, null];
     isAwardingRef.current = false;
@@ -360,6 +407,18 @@ export default function SlotPage() {
     const nextIdx = stoppedReels.findIndex((r) => r === null);
     if (nextIdx !== -1) {
       reelRefs.current[nextIdx]?.stop();
+    }
+  };
+
+  // 隠し機能: グレーアウトエリアを3回タップで解除
+  const handleSecretTap = () => {
+    secretTapRef.current += 1;
+    if (secretTapTimerRef.current) clearTimeout(secretTapTimerRef.current);
+    secretTapTimerRef.current = setTimeout(() => { secretTapRef.current = 0; }, 1000);
+    if (secretTapRef.current >= 3) {
+      setDailyLimitReached(false);
+      setShowEndMessage(false);
+      secretTapRef.current = 0;
     }
   };
 
@@ -495,6 +554,32 @@ export default function SlotPage() {
           </button>
         </div>
       </div>
+
+      {/* グレーアウトオーバーレイ（制限到達時） */}
+      {dailyLimitReached && (
+        <div
+          onClick={handleSecretTap}
+          className="absolute inset-0 z-20 flex items-center justify-center bg-gray-800/60"
+        >
+          {showEndMessage && (
+            <div className="mx-6 rounded-3xl bg-white p-6 text-center shadow-2xl">
+              <p className="mb-2 text-2xl">🦷✨</p>
+              <p className="mb-3 text-lg font-bold text-gray-700">
+                きょうの スロットは<br />おわりだよ！
+              </p>
+              <p className="mb-4 text-sm text-gray-500">
+                また あした あそぼうね！
+              </p>
+              <Link
+                href="/?tab=care"
+                className="inline-block rounded-full bg-orange-400 px-6 py-2.5 text-sm font-bold text-white shadow-md"
+              >
+                ケアきろくへ →
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* あそびかた */}
       <div className="mx-auto mt-4 w-full max-w-[300px] rounded-2xl bg-white/70 p-3 shadow-sm">

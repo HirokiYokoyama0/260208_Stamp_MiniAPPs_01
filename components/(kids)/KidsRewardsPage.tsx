@@ -12,7 +12,7 @@
  */
 export default function KidsRewardsPage() {
   return (
-    <div className="min-h-screen px-4 py-6 font-kids bg-gradient-to-br from-kids-pink to-kids-yellow">
+    <div className="min-h-screen px-4 py-6 font-kids bg-gradient-to-b from-purple-100 via-blue-50 to-sky-100">
       <div className="rounded-xl bg-white/80 p-6 text-center">
         <p className="text-4xl">🎁</p>
         <h2 className="mt-4 text-xl font-bold text-kids-purple">
