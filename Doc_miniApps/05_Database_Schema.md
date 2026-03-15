@@ -5,9 +5,9 @@
 このドキュメントでは、Supabase（PostgreSQL）のデータベース構造を全体的にまとめています。
 
 **作成日:** 2026-02-16
-**最終更新:** 2026-02-22
+**最終更新:** 2026-03-15
 **データベース:** Supabase PostgreSQL
-**バージョン:** 1.3 (Phase 2 本名フィールド追加)
+**バージョン:** 1.6 (Phase 3 stamp_history RLS更新)
 
 ---
 
@@ -138,8 +138,8 @@
 | `display_name` | TEXT | YES | - | LINEの表示名 |
 | `real_name` | TEXT | YES | - | 患者の本名（管理画面専用、個人情報、Phase 2で追加） |
 | `picture_url` | TEXT | YES | - | LINEプロフィール画像URL |
-| `stamp_count` | INTEGER | NO | 0 | 累積ポイント（内部単位: 10点 = スタンプ1個、`stamp_history` トリガーで自動更新） |
-| `visit_count` | INTEGER | NO | 0 | 純粋な来院回数（スロット除く通院のみカウント、トリガーで自動更新） |
+| `stamp_count` | INTEGER | NO | 0 | 累積スタンプ数（`stamp_history` トリガーで自動更新） |
+| `visit_count` | INTEGER | NO | 0 | 純粋な来院回数（通常来院のみカウント、トリガーで自動更新） |
 | `family_id` | TEXT | YES | - | 所属する家族のID（FK → `families.id`、Phase 2で追加） |
 | `family_role` | TEXT | YES | - | 家族内の役割（'parent' or 'child'、Phase 2で追加） |
 | `ticket_number` | TEXT | YES | - | 診察券番号（任意） |
@@ -185,8 +185,8 @@
 | `id` | UUID | NO | gen_random_uuid() | **主キー**: 履歴レコードの一意識別子 |
 | `user_id` | TEXT | NO | - | **外部キー**: profiles.id へのリンク |
 | `visit_date` | TIMESTAMPTZ | NO | - | 実際の来院日時 |
-| `stamp_number` | INTEGER | NO | - | **付与後の累積ポイント** |
-| `amount` | INTEGER | NO | 10 | **今回付与したポイント**（通常来院=10点、スロット=3点〜8点） |
+| `stamp_number` | INTEGER | NO | - | **付与後の累積スタンプ数** |
+| `amount` | INTEGER | NO | 1 | **今回付与したスタンプ数**（通常は1、将来的にスロットゲーム等で可変になる可能性あり） |
 | `stamp_method` | TEXT | NO | 'qr_scan' | 取得方式 ('qr_scan', 'manual_admin', 'import', 'survey_reward') |
 | `qr_code_id` | TEXT | YES | - | QRコードの一意識別子（重複防止用） |
 | `notes` | TEXT | YES | - | 管理者による備考（オプション） |
@@ -205,14 +205,19 @@
 
 **RLS (Row Level Security):**
 - ✅ 有効
-- ポリシー: `allow_public_read`, `allow_public_insert` (開発段階)
+- ポリシー:
+  - `allow_public_read` - 全員が読み取り可能
+  - `allow_public_insert` - 全員が挿入可能
+  - `allow_public_delete` - 全員が削除可能（016マイグレーションで追加、2026-02-24）
+  - `allow_public_update` - 全員が更新可能（016マイグレーションで追加、2026-02-24）
 
 **トリガー:**
 - `trigger_update_profile_stamp_count` (AFTER INSERT)
   - 新しいスタンプが追加されたら `profiles.stamp_count` と `profiles.last_visit_date` を自動更新
-- `trigger_update_profile_on_stamp_delete` (AFTER DELETE)
-  - スタンプ履歴が削除されたら `profiles.stamp_count` を再計算
-  - **注意**: DELETE トリガーは `SUM(amount)` で計算、INSERT トリガーは `MAX(stamp_number)` で計算（不整合あり）
+  - 計算方式: `stamp_count = MAX(stamp_number)`
+- `trigger_update_profile_on_stamp_delete` (AFTER DELETE) - 016マイグレーションで追加
+  - スタンプ削除時に `profiles.stamp_count`, `visit_count`, `last_visit_date` を再計算
+  - 計算方式: `stamp_count = MAX(stamp_number)`, `visit_count = COUNT(*)`, `last_visit_date = MAX(visit_date)`
 
 **重要な設計ポイント:**
 - `stamp_number` は「その時点でのスタンプ数（累積）」を表す
@@ -220,11 +225,6 @@
   - 例: スタッフが「5個に設定」→ stamp_number = 5
 - スタンプ数 = `MAX(stamp_number)` （`COUNT(*)` ではない）
 - 訪問回数 = `COUNT(*)` （レコード数）
-
-**⚠️ スタッフ手動スタンプ変更の制約:**
-- スタンプ数を**減らす**場合、トリガーの仕様により自動的に元の値に戻る問題がある
-- 詳細は [92_スタンプ手動変更バグ修正.md](92_スタンプ手動変更バグ修正.md) 参照
-- 修正方法: 新しい値より大きい過去のレコードを削除してから INSERT（[app/api/stamps/manual/route.ts](../app/api/stamps/manual/route.ts) 参照）
 
 ---
 
@@ -365,7 +365,7 @@
 | `family_id` | TEXT | 家族グループID（families.id） |
 | `family_name` | TEXT | 家族名 |
 | `representative_user_id` | TEXT | 代表者（親）のID |
-| `total_stamp_count` | BIGINT | 家族の合計スタンプ数（内部ポイント: 10点 = 1スタンプ） |
+| `total_stamp_count` | BIGINT | 家族の合計スタンプ数 |
 | `total_visit_count` | BIGINT | 家族の合計来院回数 |
 | `member_count` | BIGINT | 家族のメンバー数 |
 | `last_family_visit` | TIMESTAMPTZ | 家族の最終来院日 |
@@ -410,7 +410,6 @@ LIMIT 10;
 - リアルタイムで計算される（マテリアライズドビューではない）
 - 家族にメンバーが1人もいない場合、`total_stamp_count` は NULL
 - `member_count` は家族に紐付いている profiles の数
-- 表示時は `total_stamp_count ÷ 10` で実際のスタンプ数を計算
 
 ---
 
@@ -434,6 +433,30 @@ LIMIT 10;
 **設計原則: Single Source of Truth**
 - `profiles.stamp_count` がスタンプ数の唯一の真実
 - 手動で更新する必要なし（トリガーが自動計算）
+
+---
+
+### 1-2. `update_profile_on_stamp_delete()`
+
+**説明:** スタンプ履歴が削除されたら profiles テーブルを再計算（Phase 3で追加、016マイグレーション）
+
+**作成:** `016_add_delete_policy_stamp_history.sql`
+
+**トリガー:** `trigger_update_profile_on_stamp_delete` (AFTER DELETE on stamp_history)
+
+**処理内容:**
+```sql
+-- stamp_count を MAX(stamp_number) で再計算
+-- visit_count を COUNT(*) で再計算
+-- last_visit_date を MAX(visit_date) で再計算
+-- updated_at を NOW() で更新
+-- レコードが0件の場合はすべて 0 または NULL にリセット
+```
+
+**設計ポイント:**
+- スタンプ減少時（管理画面での手動調整）に `profiles` テーブルとの整合性を保つ
+- INSERT トリガーと同じく `MAX(stamp_number)` を使用して計算方法を統一
+- 削除後にレコードが残っていない場合は初期状態に戻す
 
 ---
 
@@ -510,31 +533,7 @@ LIMIT 10;
 
 ---
 
-### 7. `update_profile_on_stamp_delete()`
-
-**説明:** スタンプ履歴が削除されたら profiles テーブルを自動更新（2026-02-24追加）
-
-**作成:** `016_add_delete_policy_stamp_history.sql`
-
-**トリガー:** `trigger_update_profile_on_stamp_delete` (AFTER DELETE on stamp_history)
-
-**処理内容:**
-```sql
--- stamp_count を SUM(amount) で更新 ← INSERT トリガーと計算方法が異なる！
--- visit_count を COUNT(*) WHERE amount = 10 で更新
--- last_visit_date を MAX(visit_date) で更新
--- updated_at を NOW() で更新
-```
-
-**⚠️ 注意事項:**
-- INSERT トリガーは `MAX(stamp_number)` で計算
-- DELETE トリガーは `SUM(amount)` で計算
-- **計算方法の不整合**があるため、DELETE 後に INSERT すると値が変わる可能性がある
-- スタッフ手動スタンプ変更では、この不整合を避けるため手動更新も実行している
-
----
-
-### 8. `search_profiles_by_real_name(search_term TEXT)`
+### 7. `search_profiles_by_real_name(search_term TEXT)`
 
 **説明:** 本名またはLINE表示名で患者を検索（大文字小文字を区別しない、Phase 2で追加）
 
@@ -753,9 +752,8 @@ WHERE p.line_user_id = 'Ufff5352c2c1ff940968ae09571d92a8e';
 -- 家族ごとのスタンプ数ランキング
 SELECT
   family_name AS 家族名,
-  total_stamp_count AS 合計スタンプ,
-  member_count AS メンバー数,
-  total_stamp_count / 10 AS 表示スタンプ数
+  total_stamp_count AS 合計スタンプ数,
+  member_count AS メンバー数
 FROM family_stamp_totals
 WHERE member_count > 0
 ORDER BY total_stamp_count DESC;
@@ -776,10 +774,15 @@ ORDER BY total_stamp_count DESC;
 | 5 | `005_add_view_mode_column.sql` | 表示モードカラム追加 | Phase 0 |
 | 6 | `006_add_next_memo_columns.sql` | 次回メモ機能カラム + トリガー追加 | Phase 0 |
 | 7 | `007_add_reservation_clicks.sql` | 予約ボタンクリック数カラム + 関数追加 | Phase 0 |
-| 8 | `008_add_10x_system_columns.sql` | 10倍整数システム対応（visit_count, amount カラム追加） | Phase 1 |
+| 8 | `008_add_10x_system_columns.sql` | スタンプ履歴拡張（visit_count, amount カラム追加） | Phase 1 |
 | 9 | `009_add_family_support.sql` | **家族機能追加**（families テーブル、family_id/family_role カラム、family_stamp_totals ビュー） | **Phase 2** |
 | 10 | `009_fix_rls_policies.sql` | RLSポリシー修正（auth.uid() 削除） | Phase 2 |
 | 11 | `012_add_real_name_column.sql` | 本名カラム追加（real_name、idx_profiles_real_name、search_profiles_by_real_name関数） | Phase 2 |
+| 12 | `013_create_staff_table.sql` | スタッフアカウントテーブル作成 | Phase 2 |
+| 13 | `014_create_activity_logs_table.sql` | スタッフ操作ログテーブル作成 | Phase 2 |
+| 14 | `015_create_event_logs_table_ForUser.sql` | ユーザー行動ログテーブル + ビュー作成 | Phase 2 |
+| 15 | `016_add_delete_policy_stamp_history.sql` | **stamp_history DELETE/UPDATEポリシー + DELETEトリガー追加**（スタンプ削除時の整合性維持） | **Phase 3** |
+| 16 | `019_create_dental_records_table.sql` | 歯科ケア記録テーブル + RPC関数作成 | Phase 3 |
 
 **注意:**
 - 002 は 001 に依存（外部キー: profiles.id）
@@ -890,64 +893,6 @@ ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "allow_public_read" ON profiles;
 CREATE POLICY "allow_public_read" ON profiles FOR SELECT USING (true);
 ```
-
----
-
-### 問題4: スタッフ手動スタンプ変更が元に戻る（2026-03-07 発見・修正）
-
-**原因:**
-- スタンプ数を減らす場合、トリガーが `MAX(stamp_number)` を全履歴から計算
-- 過去に大きい値（例: 63個）が存在すると、新しい小さい値（例: 56個）が上書きされる
-
-**症状:**
-```
-スタッフが 63個 → 56個 に変更
-一瞬 56個 と表示される
-タブを切り替えると 63個 に戻る
-```
-
-**詳細分析:**
-- [92_スタンプ手動変更バグ修正.md](92_スタンプ手動変更バグ修正.md) 参照
-- [93_スタンプ手動変更バグ_詳細分析.md](93_スタンプ手動変更バグ_詳細分析.md) 参照
-
-**対処（実装済み）:**
-```typescript
-// app/api/stamps/manual/route.ts で実装済み
-
-// スタンプ数を減らす場合、新しい値より大きいレコードを削除
-if (newStampCount < currentStampCount) {
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
-  // 過去の大きい値を削除
-  await supabaseAdmin
-    .from("stamp_history")
-    .delete()
-    .eq("user_id", userId)
-    .gt("stamp_number", newStampCount);
-}
-
-// 新しいレコードを INSERT
-await supabase.from("stamp_history").insert({
-  stamp_number: newStampCount,
-  ...
-});
-
-// 念のため手動でも更新（トリガー間の不整合を回避）
-await supabaseAdmin
-  .from("profiles")
-  .update({ stamp_count: newStampCount })
-  .eq("id", userId);
-```
-
-**なぜ以前は問題なかったのか:**
-- スタンプ数が増える一方の時期: 問題なし
-- スロットゲーム導入: 大量付与されるケースが増加
-- 手動調整の増加: 減らす操作が発生 → 問題が表面化
-
-**根本的な解決策（将来の改善案）:**
-1. トリガー関数を統一する（INSERT/DELETE ともに `MAX(stamp_number)` を使用）
-2. 論理削除を導入する（deleted_at カラムを追加）
-3. 削除ログテーブルを作成する（監査証跡を保持）
 
 ---
 
@@ -1106,9 +1051,9 @@ await supabaseAdmin
 | 2026-02-22 | 1.3 | **Phase 2 本名フィールド追加**：profiles.real_name カラム、idx_profiles_real_name インデックス、search_profiles_by_real_name() 関数、012マイグレーション追加 |
 | 2026-03-01 | 1.4 | **staff / activity_logs / event_logs テーブル追加**：スタッフアカウント・操作ログ・ユーザー行動ログのテーブル定義、ビュー（daily_active_users, event_summary）追記 |
 | 2026-03-07 | 1.5 | **Phase 3 ケア記録機能追加**：patient_dental_records テーブル、8種類のstatus定義（治療中追加）、Supabase RPC関数3つ、019マイグレーション追加 |
-| 2026-03-07 | 1.6 | **スタッフ手動スタンプ変更バグ対応**：DELETE トリガー説明追加、トリガー間の計算方法不整合の注意事項追加、問題4「スタッフ手動スタンプ変更が元に戻る」追加、修正方法と根本原因の詳細記載 |
+| 2026-03-15 | 1.6 | **stamp_history RLS更新（実測確認に基づく）**：016マイグレーションの DELETE/UPDATE ポリシーとDELETEトリガーを追記、update_profile_on_stamp_delete() 関数追加、マイグレーション順序更新 |
 
 ---
 
 **作成者:** Claude Code
-**最終更新日:** 2026-03-07
+**最終更新日:** 2026-03-15
