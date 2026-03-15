@@ -270,6 +270,23 @@ function incrementTodayPlays() {
   } catch { /* ignore */ }
 }
 
+const SLOT_STAMPS_KEY = "slot_stamps";
+
+function getTodayStamps(): number {
+  try {
+    const data = JSON.parse(localStorage.getItem(SLOT_STAMPS_KEY) || "{}");
+    return data[getTodayKey()] || 0;
+  } catch { return 0; }
+}
+
+function addTodayStamps(stamps: number) {
+  try {
+    const data = JSON.parse(localStorage.getItem(SLOT_STAMPS_KEY) || "{}");
+    data[getTodayKey()] = (data[getTodayKey()] || 0) + stamps;
+    localStorage.setItem(SLOT_STAMPS_KEY, JSON.stringify(data));
+  } catch { /* ignore */ }
+}
+
 export default function SlotPage() {
   const { profile } = useLiff();
   // selectedChildId がある場合（子供の画面経由）はその子のIDにスタンプを付与する
@@ -293,6 +310,7 @@ export default function SlotPage() {
   // 1日の回数制限
   const [dailyLimitReached, setDailyLimitReached] = useState(false);
   const [showEndMessage, setShowEndMessage] = useState(false);
+  const [todayTotalStamps, setTodayTotalStamps] = useState(0);
   // 隠し機能: 3回タップで解除
   const secretTapRef = useRef(0);
   const secretTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -304,8 +322,10 @@ export default function SlotPage() {
 
   // 初期化時に回数チェック
   useEffect(() => {
+    setTodayTotalStamps(getTodayStamps());
     if (getTodayPlays() >= DAILY_LIMIT) {
       setDailyLimitReached(true);
+      setShowEndMessage(true);
     }
   }, []);
 
@@ -363,6 +383,10 @@ export default function SlotPage() {
       }
       setSpinning(false);
       awardSlotStamps(stampsWon);
+
+      // 今日の獲得スタンプを記録
+      addTodayStamps(stampsWon);
+      setTodayTotalStamps(getTodayStamps());
 
       // プレイ回数をインクリメント → 制限チェック
       incrementTodayPlays();
@@ -564,9 +588,14 @@ export default function SlotPage() {
           {showEndMessage && (
             <div className="mx-6 rounded-3xl bg-white p-6 text-center shadow-2xl">
               <p className="mb-2 text-2xl">🦷✨</p>
-              <p className="mb-3 text-lg font-bold text-gray-700">
+              <p className="mb-2 text-lg font-bold text-gray-700">
                 きょうの スロットは<br />おわりだよ！
               </p>
+              {todayTotalStamps > 0 && (
+                <p className="mb-2 text-base font-black text-orange-600">
+                  きょうは ⭐{todayTotalStamps}こ ゲット！
+                </p>
+              )}
               <p className="mb-4 text-sm text-gray-500">
                 また あした あそぼうね！
               </p>
