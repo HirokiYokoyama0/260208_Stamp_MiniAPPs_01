@@ -159,6 +159,7 @@ export default function SettingsPage() {
     }
   };
 
+
   // デバッグログ
   console.log('[Settings Render] familyRole:', familyRole);
   console.log('[Settings Render] proxyChildren:', proxyChildren);
@@ -327,8 +328,18 @@ export default function SettingsPage() {
             <span className="text-gray-400">→</span>
           </button>
         ) : (
-          /* 家族未参加の場合：2つの選択肢を表示 */
-          <div className="space-y-3">
+          /* 家族未参加の場合：説明文 + 2つの選択肢を表示 */
+          <div className="space-y-4">
+            {/* 説明文：現在は個人利用中であることを明示 */}
+            <div className="rounded-lg bg-gray-50 p-4 border border-gray-200">
+              <p className="text-sm text-gray-700 mb-2">
+                <span className="font-semibold">現在、個人でご利用中です。</span>
+              </p>
+              <p className="text-xs text-gray-600">
+                家族でスタンプを共有したい場合は、以下から設定できます。
+              </p>
+            </div>
+
             {/* 親として家族を作成 */}
             <button
               onClick={() => router.push('/family/create')}

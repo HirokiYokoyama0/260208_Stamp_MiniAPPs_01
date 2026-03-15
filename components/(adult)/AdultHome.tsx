@@ -125,10 +125,15 @@ export default function AdultHome() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn, profile?.userId]);
 
-  // 初回ユーザー（family_role が NULL）を設定画面へ誘導
+  // 初回ユーザー（family_role が NULL かつ初回表示）を設定画面へ誘導
+  // ただし、単身ユーザーとして利用する場合は family_role = NULL のまま維持
   useEffect(() => {
-    if (familyRole === null && profile?.userId && !isLoading) {
+    // 初回アクセスかどうかのフラグをローカルストレージで管理
+    const hasSeenFamilySetup = localStorage.getItem('hasSeenFamilySetup');
+
+    if (familyRole === null && profile?.userId && !isLoading && !hasSeenFamilySetup) {
       console.log('[AdultHome] 初回ユーザー検出 → /settings にリダイレクト');
+      localStorage.setItem('hasSeenFamilySetup', 'true');
       router.push('/settings');
     }
   }, [familyRole, profile?.userId, isLoading, router]);
