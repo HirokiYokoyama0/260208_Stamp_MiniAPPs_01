@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useLiff } from "@/hooks/useLiff";
 import { QRScanner } from "@/components/shared/QRScanner";
 import { VersionInfo } from "@/components/layout/VersionInfo";
@@ -13,6 +14,7 @@ import { UserMemo } from "@/types/memo";
 import { logReservationClick, logEvent } from "@/lib/analytics";
 
 export default function AdultHome() {
+  const router = useRouter();
   const { isInitialized, isLoggedIn, isLoading, profile, login } = useLiff();
   const [stampCount, setStampCount] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -23,13 +25,14 @@ export default function AdultHome() {
   const [familyStampCount, setFamilyStampCount] = useState<number | null>(null);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [realName, setRealName] = useState<string | null>(null);
+  const [familyRole, setFamilyRole] = useState<string | null>(null);
 
   // Supabaseからユーザーデータを取得
   const fetchUserData = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("stamp_count, updated_at, ticket_number, family_id, real_name")
+        .select("stamp_count, updated_at, ticket_number, family_id, real_name, family_role")
         .eq("id", userId)
         .single();
 
@@ -44,12 +47,14 @@ export default function AdultHome() {
         setTicketNumber(data.ticket_number);
         setFamilyId(data.family_id);
         setRealName(data.real_name);
+        setFamilyRole(data.family_role);
         console.log("✅ ユーザーデータを取得しました:", {
           stampCount: data.stamp_count,
           updatedAt: data.updated_at,
           ticketNumber: data.ticket_number,
           familyId: data.family_id,
           realName: data.real_name,
+          familyRole: data.family_role,
         });
 
         // 家族に所属している場合、家族全体のスタンプ数を取得
@@ -119,6 +124,19 @@ export default function AdultHome() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn, profile?.userId]);
+
+  // 初回ユーザー（family_role が NULL かつ初回表示）を設定画面へ誘導
+  // ただし、単身ユーザーとして利用する場合は family_role = NULL のまま維持
+  useEffect(() => {
+    // 初回アクセスかどうかのフラグをローカルストレージで管理
+    const hasSeenFamilySetup = localStorage.getItem('hasSeenFamilySetup');
+
+    if (familyRole === null && profile?.userId && !isLoading && !hasSeenFamilySetup) {
+      console.log('[AdultHome] 初回ユーザー検出 → /settings にリダイレクト');
+      localStorage.setItem('hasSeenFamilySetup', 'true');
+      router.push('/settings');
+    }
+  }, [familyRole, profile?.userId, isLoading, router]);
 
   // 日付フォーマット関数
   const formatDate = (dateString: string | null): string => {

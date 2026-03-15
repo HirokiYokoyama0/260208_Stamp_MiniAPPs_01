@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLiff } from '@/hooks/useLiff';
 import { Users, QrCode, Loader2, ArrowLeft } from 'lucide-react';
@@ -12,6 +12,27 @@ export default function FamilyJoinPage() {
   const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // 既に家族参加済みの場合はリダイレクト
+  useEffect(() => {
+    const checkFamilyStatus = async () => {
+      if (!profile?.userId || liffLoading) return;
+
+      try {
+        const res = await fetch(`/api/users/me?userId=${profile.userId}`);
+        const data = await res.json();
+
+        if (data.success && data.profile && data.profile.family_id) {
+          alert('既に家族に参加しています。家族情報は設定画面から確認できます。');
+          router.push('/');
+        }
+      } catch (err) {
+        console.error('家族状態確認エラー:', err);
+      }
+    };
+
+    checkFamilyStatus();
+  }, [liffLoading, profile, router]);
 
   const handleJoin = async () => {
     if (!profile?.userId) {
