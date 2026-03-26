@@ -71,7 +71,7 @@ function AutoStampContent() {
           body: JSON.stringify({
             userId,
             amount: stampAmount,
-            type: "qr",
+            type: type || "qr",  // URLパラメータのtypeをそのまま使用
             location: location || null,
           }),
         });

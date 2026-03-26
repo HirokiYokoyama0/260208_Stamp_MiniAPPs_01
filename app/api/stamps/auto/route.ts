@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (type !== "qr") {
+    if (type !== "qr" && type !== "purchase") {
       return NextResponse.json(
         { success: false, message: "無効なスタンプタイプです" },
         { status: 400 }
