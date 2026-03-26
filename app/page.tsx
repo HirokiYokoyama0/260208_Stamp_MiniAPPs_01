@@ -17,7 +17,7 @@ function HomeContent() {
     const type = searchParams.get('type');
     const amount = searchParams.get('amount');
 
-    if (action === 'stamp' && type === 'qr' && amount) {
+    if (action === 'stamp' && (type === 'qr' || type === 'purchase') && amount) {
       console.log('[HomePage] QRスタンプアクション検出 → /auto-stamp にリダイレクト');
       const location = searchParams.get('location');
       const params = new URLSearchParams({
