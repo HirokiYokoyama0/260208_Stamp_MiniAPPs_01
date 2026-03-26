@@ -344,13 +344,16 @@ export default function KidsStampPage() {
 
               // スタンプ取得方法の絵文字・ラベル・背景色（子供向け）
               const methodInfo: Record<string, { emoji: string; label: string; bg: string }> = {
-                qr_scan:       { emoji: "🏥", label: "びょういん に きたよ！",   bg: "bg-kids-blue/15" },
-                slot_game:     { emoji: "🎰", label: "スロット で ゲット！",      bg: "bg-kids-pink/15" },
-                survey_reward: { emoji: "📝", label: "アンケート ほうしゅう",    bg: "bg-kids-green/15" },
-                manual_admin:  { emoji: "👨‍⚕️", label: "せんせい から",         bg: "bg-kids-yellow/30" },
+                qr:                 { emoji: "📍", label: "らいいん で きたよ！",     bg: "bg-kids-blue/15" },
+                qr_scan:            { emoji: "🏥", label: "びょういん に きたよ！",   bg: "bg-kids-blue/15" },
+                purchase_incentive: { emoji: "🛒", label: "おかいもの で ゲット！", bg: "bg-kids-purple/15" },
+                slot_game:          { emoji: "🎰", label: "スロット で ゲット！",      bg: "bg-kids-pink/15" },
+                survey_reward:      { emoji: "📝", label: "アンケート ほうしゅう",    bg: "bg-kids-green/15" },
+                manual_admin:       { emoji: "👨‍⚕️", label: "せんせい から",         bg: "bg-kids-yellow/30" },
+                import:             { emoji: "📦", label: "でーた いどう",           bg: "bg-gray-100" },
               };
               const method = methodInfo[record.stamp_method] ?? {
-                emoji: "⭐", label: "スタンプ をもらったよ", bg: "bg-gray-100",
+                emoji: "❓", label: "ふめい", bg: "bg-gray-100",
               };
 
               return (

@@ -10,15 +10,16 @@ import { logStampScanSuccess, logStampScanFail } from "@/lib/analytics";
  * 仕様: Doc/24_QRコード表示_LIFFアプリ開発者へ.md
  *
  * QRコードペイロード形式:
- * - 優良患者様用: {"type":"premium","stamps":10}
- * - 通常患者様用: {"type":"regular","stamps":5}
+ * - 優良患者様用: {"type":"premium","stamps":15}
+ * - 通常患者様用: {"type":"regular","stamps":10}
+ * - 購買インセンティブ用: {"type":"purchase","stamps":5}
  */
 
 interface QRScanRequest {
-  userId: string;               // LINEユーザーID (必須)
-  type: "premium" | "regular";  // QRコードタイプ (必須)
-  stamps: number;               // 付与スタンプ個数 (必須)
-  qrCodeId?: string;            // QRコードID (重複防止用、オプション)
+  userId: string;                              // LINEユーザーID (必須)
+  type: "premium" | "regular" | "purchase";    // QRコードタイプ (必須)
+  stamps: number;                              // 付与スタンプ個数 (必須)
+  qrCodeId?: string;                           // QRコードID (重複防止用、オプション)
 }
 
 interface QRScanResponse {
@@ -61,12 +62,12 @@ export async function POST(
     }
 
     // タイプのバリデーション
-    if (type !== "premium" && type !== "regular") {
+    if (type !== "premium" && type !== "regular" && type !== "purchase") {
       return NextResponse.json(
         {
           success: false,
           message: "無効なQRコードタイプです",
-          error: `Invalid type: ${type}. Must be 'premium' or 'regular'`,
+          error: `Invalid type: ${type}. Must be 'premium', 'regular', or 'purchase'`,
         },
         { status: 400 }
       );
@@ -103,43 +104,45 @@ export async function POST(
       );
     }
 
-    // 1日1回制限チェック（全QR方式共通）
+    // 1日1回制限チェック（購買インセンティブは対象外）
     // カメラ用QRコード（直接LIFF起動）とアプリ内スキャン用（ペイロード型）の両方を含む
-    const today = new Date().toISOString().split("T")[0];
-    const { data: todayQrRecords, error: qrCheckError } = await supabase
-      .from("stamp_history")
-      .select("id, stamp_method, notes")
-      .eq("user_id", userId)
-      .eq("stamp_method", "qr")
-      .gte("visit_date", `${today}T00:00:00`)
-      .lt("visit_date", `${today}T23:59:59.999Z`);
+    if (type !== "purchase") {
+      const today = new Date().toISOString().split("T")[0];
+      const { data: todayQrRecords, error: qrCheckError } = await supabase
+        .from("stamp_history")
+        .select("id, stamp_method, notes")
+        .eq("user_id", userId)
+        .eq("stamp_method", "qr")
+        .gte("visit_date", `${today}T00:00:00`)
+        .lt("visit_date", `${today}T23:59:59.999Z`);
 
-    if (qrCheckError) {
-      console.error("❌ 1日1回制限チェックエラー:", qrCheckError);
-      return NextResponse.json(
-        {
-          success: false,
-          message: "チェックに失敗しました",
-          error: qrCheckError.message,
-        },
-        { status: 500 }
-      );
-    }
+      if (qrCheckError) {
+        console.error("❌ 1日1回制限チェックエラー:", qrCheckError);
+        return NextResponse.json(
+          {
+            success: false,
+            message: "チェックに失敗しました",
+            error: qrCheckError.message,
+          },
+          { status: 500 }
+        );
+      }
 
-    if (todayQrRecords && todayQrRecords.length > 0) {
-      console.log(`⚠️ 1日1回制限: User ${userId} は本日既にQRスタンプを取得済み`);
-      await logStampScanFail({
-        error: "Already received QR stamp today",
-        userId: userId,
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          message: "本日は既にQRコードでスタンプを受け取っています",
+      if (todayQrRecords && todayQrRecords.length > 0) {
+        console.log(`⚠️ 1日1回制限: User ${userId} は本日既にQRスタンプを取得済み`);
+        await logStampScanFail({
           error: "Already received QR stamp today",
-        },
-        { status: 409 } // 409 Conflict
-      );
+          userId: userId,
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            message: "本日は既にQRコードでスタンプを受け取っています",
+            error: "Already received QR stamp today",
+          },
+          { status: 409 } // 409 Conflict
+        );
+      }
     }
 
     const currentStampCount = profileData.stamp_count ?? 0;
@@ -152,10 +155,12 @@ export async function POST(
         user_id: userId,
         visit_date: new Date().toISOString(),
         stamp_number: nextStampNumber,
-        stamp_method: "qr", // 全QR方式で統一（カメラ用QRとアプリ内スキャンの両方）
+        stamp_method: type === "purchase" ? "purchase_incentive" : "qr", // 購買インセンティブのみ別メソッド
         qr_code_id: qrCodeId || `${type}_${Date.now()}`, // qrCodeIdがない場合は生成
         amount: stamps, // 今回付与したスタンプ個数
-        notes: `アプリ内スキャン (${type})`, // ペイロード型であることを記録
+        notes: type === "purchase"
+          ? "購買インセンティブ (アプリ内スキャン)"
+          : `アプリ内スキャン (${type})`, // ペイロード型であることを記録
       })
       .select()
       .single();

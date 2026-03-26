@@ -255,6 +255,8 @@ export const getStampMethodLabel = (
       return "来院（QRコード）";
     case "qr_scan": // 旧仕様（後方互換性のため残す）
       return "来院（QRコード）";
+    case "purchase_incentive":
+      return "購買インセンティブ";
     case "manual_admin":
       return "スタッフ操作";
     case "import":
@@ -275,18 +277,22 @@ export const getStampMethodLabel = (
  */
 export const getStampMethodIcon = (
   stampMethod: StampHistoryRecord["stamp_method"]
-): "QrCode" | "User" | "Package" | "FileText" => {
+): "QrCode" | "User" | "Package" | "FileText" | "ShoppingCart" => {
   switch (stampMethod) {
     case "qr":
       return "QrCode";
     case "qr_scan": // 旧仕様（後方互換性のため残す）
       return "QrCode";
+    case "purchase_incentive":
+      return "Package";
     case "manual_admin":
       return "User";
     case "import":
       return "Package";
     case "survey_reward":
       return "FileText";
+    case "slot_game":
+      return "Package";
     default:
       return "QrCode";
   }

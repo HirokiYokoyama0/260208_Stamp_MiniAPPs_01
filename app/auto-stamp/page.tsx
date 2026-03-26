@@ -17,6 +17,8 @@ function AutoStampContent() {
   useEffect(() => {
     const processAutoStamp = async () => {
       try {
+        console.log(`[AutoStamp v2.0] ページ読み込み開始`);
+
         // LIFF初期化
         if (!liff.isInClient()) {
           setStatus("error");
@@ -38,18 +40,23 @@ function AutoStampContent() {
         const location = searchParams.get("location");
 
         // バリデーション
-        if (action !== "stamp" || type !== "qr") {
+        if (action !== "stamp" || (type !== "qr" && type !== "purchase")) {
           setStatus("error");
           setMessage("無効なQRコードです");
           return;
         }
 
         const stampAmount = parseInt(amount || "0");
-        if (![5, 10].includes(stampAmount)) {
+        console.log(`[AutoStamp] パース後のスタンプ数: ${stampAmount}, 型: ${typeof stampAmount}, amount元値: ${amount}`);
+
+        if (![5, 10, 15].includes(stampAmount)) {
+          console.error(`[AutoStamp] バリデーションエラー: ${stampAmount}は許可されていません`);
           setStatus("error");
-          setMessage("無効なスタンプ数です");
+          setMessage(`無効なスタンプ数です (受け取った値: ${amount}, パース後: ${stampAmount})`);
           return;
         }
+
+        console.log(`[AutoStamp] バリデーション成功: ${stampAmount}個`);
 
         // ユーザーIDを取得
         const profile = await liff.getProfile();
@@ -196,7 +203,7 @@ export default function AutoStampPage() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-purple-50">
         <div className="text-center">
           <div className="mb-4 text-6xl">⏳</div>
-          <p className="text-lg font-bold text-gray-700">読み込み中...</p>
+          <p className="text-lg font-bold text-gray-700">読み込み中... v2.1</p>
         </div>
       </div>
     }>

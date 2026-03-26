@@ -142,7 +142,7 @@ export const logPageView = (params: { pagePath: string; userId?: string; metadat
 /**
  * スタンプスキャン成功ログ
  */
-export const logStampScanSuccess = (params: { stampsAdded: number; type: 'regular' | 'premium'; userId?: string }) => {
+export const logStampScanSuccess = (params: { stampsAdded: number; type: 'regular' | 'premium' | 'purchase'; userId?: string }) => {
   return logEvent({
     eventName: 'stamp_scan_success',
     userId: params.userId,

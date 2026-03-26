@@ -35,42 +35,44 @@ export async function POST(req: Request) {
       );
     }
 
-    if (![5, 10].includes(amount)) {
+    if (![5, 10, 15].includes(amount)) {
       return NextResponse.json(
-        { success: false, message: "スタンプ数は5または10である必要があります" },
+        { success: false, message: "スタンプ数は5、10、または15である必要があります" },
         { status: 400 }
       );
     }
 
-    // 1日1回制限チェック（全QR方式共通）
+    // 1日1回制限チェック（購買インセンティブは対象外）
     // カメラ用QRコード（直接LIFF起動）とアプリ内スキャン用（ペイロード型）の両方を含む
-    const today = new Date().toISOString().split("T")[0];
-    const { data: todayQrRecords, error: qrCheckError } = await supabase
-      .from("stamp_history")
-      .select("id, stamp_method, notes")
-      .eq("user_id", userId)
-      .eq("stamp_method", "qr")
-      .gte("visit_date", `${today}T00:00:00`)
-      .lt("visit_date", `${today}T23:59:59.999Z`);
+    if (location !== "shop") {
+      const today = new Date().toISOString().split("T")[0];
+      const { data: todayQrRecords, error: qrCheckError } = await supabase
+        .from("stamp_history")
+        .select("id, stamp_method, notes")
+        .eq("user_id", userId)
+        .eq("stamp_method", "qr")
+        .gte("visit_date", `${today}T00:00:00`)
+        .lt("visit_date", `${today}T23:59:59.999Z`);
 
-    if (qrCheckError) {
-      console.error("❌ 1日1回制限チェックエラー:", qrCheckError);
-      return NextResponse.json(
-        { success: false, message: "チェックに失敗しました" },
-        { status: 500 }
-      );
-    }
+      if (qrCheckError) {
+        console.error("❌ 1日1回制限チェックエラー:", qrCheckError);
+        return NextResponse.json(
+          { success: false, message: "チェックに失敗しました" },
+          { status: 500 }
+        );
+      }
 
-    if (todayQrRecords && todayQrRecords.length > 0) {
-      console.log(`⚠️ 1日1回制限: User ${userId} は本日既にQRスタンプを取得済み`);
-      return NextResponse.json(
-        {
-          success: false,
-          message: "本日は既にQRコードでスタンプを受け取っています",
-          alreadyReceived: true
-        },
-        { status: 409 } // 409 Conflict
-      );
+      if (todayQrRecords && todayQrRecords.length > 0) {
+        console.log(`⚠️ 1日1回制限: User ${userId} は本日既にQRスタンプを取得済み`);
+        return NextResponse.json(
+          {
+            success: false,
+            message: "本日は既にQRコードでスタンプを受け取っています",
+            alreadyReceived: true
+          },
+          { status: 409 } // 409 Conflict
+        );
+      }
     }
 
     // 現在のスタンプ数を取得
@@ -96,11 +98,13 @@ export async function POST(req: Request) {
       .from("stamp_history")
       .insert({
         user_id: userId,
-        stamp_method: "qr", // 全QR方式で統一（カメラ用QRとアプリ内スキャンの両方）
+        stamp_method: location === "shop" ? "purchase_incentive" : "qr", // 購買インセンティブのみ別メソッド
         amount: amount,
         stamp_number: newStampNumber,
         visit_date: new Date().toISOString(),
-        notes: location ? `カメラ用QR (${location})` : "カメラ用QR",
+        notes: location === "shop"
+          ? "購買インセンティブ (カメラ用QR)"
+          : (location ? `カメラ用QR (${location})` : "カメラ用QR"),
       })
       .select()
       .single();

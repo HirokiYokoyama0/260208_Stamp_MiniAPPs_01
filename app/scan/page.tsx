@@ -17,7 +17,7 @@ import Link from 'next/link';
  */
 
 interface QRPayload {
-  type: 'premium' | 'regular';
+  type: 'premium' | 'regular' | 'purchase';
   stamps: number;  // スタンプ個数（pointsではない）
 }
 
@@ -96,7 +96,7 @@ export default function QRScanPage() {
         return;
       }
 
-      if (payload.type !== 'premium' && payload.type !== 'regular') {
+      if (payload.type !== 'premium' && payload.type !== 'regular' && payload.type !== 'purchase') {
         setError('サポートされていないQRコードタイプです');
         return;
       }
@@ -258,7 +258,7 @@ export default function QRScanPage() {
                 type="text"
                 value={manualInput}
                 onChange={(e) => setManualInput(e.target.value)}
-                placeholder='{"type":"premium","stamps":10}'
+                placeholder='{"type":"premium","stamps":15}'
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
               />
               <button
@@ -270,16 +270,22 @@ export default function QRScanPage() {
             </div>
             <div className="mt-2 space-y-1">
               <button
-                onClick={() => setManualInput('{"type":"premium","stamps":10}')}
+                onClick={() => setManualInput('{"type":"premium","stamps":15}')}
                 className="block w-full text-left text-xs text-blue-600 hover:underline"
               >
-                優良患者様用 (10個)
+                優良患者様用 (15個)
               </button>
               <button
-                onClick={() => setManualInput('{"type":"regular","stamps":5}')}
+                onClick={() => setManualInput('{"type":"regular","stamps":10}')}
                 className="block w-full text-left text-xs text-blue-600 hover:underline"
               >
-                通常患者様用 (5個)
+                通常患者様用 (10個)
+              </button>
+              <button
+                onClick={() => setManualInput('{"type":"purchase","stamps":5}')}
+                className="block w-full text-left text-xs text-blue-600 hover:underline"
+              >
+                購買インセンティブ用 (5個)
               </button>
             </div>
           </div>

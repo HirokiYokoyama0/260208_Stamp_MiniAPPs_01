@@ -183,15 +183,21 @@ export default function AdultStampPage() {
               // スタンプ取得方法に応じた背景色
               const bgColor =
                 record.stamp_method === "qr" || record.stamp_method === "qr_scan" ? "bg-primary/10" :
+                record.stamp_method === "purchase_incentive" ? "bg-purple-500/10" :
                 record.stamp_method === "survey_reward" ? "bg-green-500/10" :
+                record.stamp_method === "slot_game" ? "bg-pink-500/10" :
                 record.stamp_method === "manual_admin" ? "bg-amber-500/10" :
+                record.stamp_method === "import" ? "bg-gray-500/10" :
                 "bg-gray-400/10";
 
               // アイコン色
               const iconColor =
                 record.stamp_method === "qr" || record.stamp_method === "qr_scan" ? "text-primary" :
+                record.stamp_method === "purchase_incentive" ? "text-purple-600" :
                 record.stamp_method === "survey_reward" ? "text-green-600" :
+                record.stamp_method === "slot_game" ? "text-pink-600" :
                 record.stamp_method === "manual_admin" ? "text-amber-600" :
+                record.stamp_method === "import" ? "text-gray-600" :
                 "text-gray-500";
 
               return (

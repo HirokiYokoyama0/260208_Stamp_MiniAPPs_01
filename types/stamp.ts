@@ -10,9 +10,9 @@ export interface StampHistoryRecord {
   user_id: string;
   visit_date: string;
   stamp_number: number;
-  stamp_method: "qr" | "qr_scan" | "manual_admin" | "import" | "survey_reward" | "slot_game";
+  stamp_method: "qr" | "qr_scan" | "manual_admin" | "import" | "survey_reward" | "slot_game" | "purchase_incentive";
   qr_code_id: string | null;
-  amount: number | null; // QRスキャンで獲得したポイント数（通常5、優良10）
+  amount: number | null; // スタンプ獲得数（Regular: 10, Premium: 15, Purchase: 5）
   notes: string | null;
   created_at: string;
   updated_at: string;
