@@ -108,14 +108,19 @@ export async function POST(
     // 1日1回制限チェック（購買インセンティブは対象外）
     // カメラ用QRコード（直接LIFF起動）とアプリ内スキャン用（ペイロード型）の両方を含む
     if (type !== "purchase") {
-      const today = new Date().toISOString().split("T")[0];
+      // 日本時間（JST = UTC+9）で当日の範囲を計算
+      const nowJST = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
+      const todayJST = nowJST.toISOString().split("T")[0];
+      const startOfDayUTC = `${todayJST}T00:00:00+09:00`; // JSTの0時をISO形式で
+      const endOfDayUTC = `${todayJST}T23:59:59.999+09:00`; // JSTの23:59:59をISO形式で
+
       const { data: todayQrRecords, error: qrCheckError } = await supabase
         .from("stamp_history")
         .select("id, stamp_method, notes")
         .eq("user_id", userId)
         .eq("stamp_method", "qr")
-        .gte("visit_date", `${today}T00:00:00`)
-        .lt("visit_date", `${today}T23:59:59.999Z`);
+        .gte("visit_date", startOfDayUTC)
+        .lt("visit_date", endOfDayUTC);
 
       if (qrCheckError) {
         console.error("❌ 1日1回制限チェックエラー:", qrCheckError);

@@ -496,11 +496,14 @@ export default function AdultRewardsPage() {
                       {(() => {
                         // POIC特典の場合、初回/2回目の説明を切り替え
                         if (reward.is_first_time_special && reward.reward_type === 'poic') {
-                          // このユーザーがPOICを過去に受け取ったことがあるか確認
-                          const hasReceivedPoicBefore = exchangeHistory.some(
-                            h => h.reward_id === reward.id && h.is_milestone_based === true
+                          // 50個目のマイルストーンでPOICを受け取ったことがあるか確認
+                          // （50個目が初回、100個目以降は2回目扱い）
+                          const hasReceivedPoicAt50 = exchangeHistory.some(
+                            h => h.reward_id === reward.id &&
+                                 h.is_milestone_based === true &&
+                                 h.milestone_reached === 50
                           );
-                          return hasReceivedPoicBefore
+                          return hasReceivedPoicAt50
                             ? (reward.subsequent_description || reward.description)
                             : (reward.first_time_description || reward.description);
                         }

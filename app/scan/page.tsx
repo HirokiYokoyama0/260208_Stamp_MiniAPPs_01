@@ -102,6 +102,11 @@ export default function QRScanPage() {
       }
 
       // スタンプ付与APIを呼び出し
+      // 購買インセンティブは毎回ユニークなID、それ以外は日付ベース
+      const qrCodeId = payload.type === 'purchase'
+        ? `${payload.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        : `${payload.type}_${new Date().toISOString().split('T')[0]}`;
+
       const response = await fetch('/api/stamps/scan', {
         method: 'POST',
         headers: {
@@ -111,7 +116,7 @@ export default function QRScanPage() {
           userId: profile!.userId,
           type: payload.type,
           stamps: payload.stamps,  // stampsに統一
-          qrCodeId: `${payload.type}_${new Date().toISOString().split('T')[0]}`,
+          qrCodeId,
         }),
       });
 
@@ -295,8 +300,8 @@ export default function QRScanPage() {
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
           <p className="text-sm text-yellow-800 font-medium mb-2">📌 ご注意</p>
           <ul className="text-xs text-yellow-700 space-y-1">
-            <li>• 同じQRコードは1日1回のみスキャン可能です</li>
-            <li>• QRコードは院内の受付または診察室に設置されています</li>
+            <li>• 来院用QRコード（優良・通常）は1日1回のみスキャン可能です</li>
+            <li>• 購買インセンティブ用QRコードは何度でもスキャン可能です</li>
             <li>• スタンプが正しく付与されない場合はスタッフにお声がけください</li>
           </ul>
         </div>
