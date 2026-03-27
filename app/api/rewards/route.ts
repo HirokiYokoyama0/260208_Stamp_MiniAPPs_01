@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { GetRewardsResponse, Reward } from "@/types/reward";
+import { GetRewardsResponse, MilestoneReward } from "@/types/reward";
 
 /**
  * GET /api/rewards
- * 有効な特典一覧を取得
+ * 有効なマイルストーン型特典一覧を取得（新仕様）
  */
 export async function GET(): Promise<NextResponse<GetRewardsResponse>> {
   try {
     const { data, error } = await supabase
-      .from("rewards")
+      .from("milestone_rewards")
       .select("*")
       .eq("is_active", true)
       .order("display_order", { ascending: true });
 
     if (error) {
-      console.error("❌ 特典一覧取得エラー:", error);
+      console.error("❌ マイルストーン型特典一覧取得エラー:", error);
       return NextResponse.json(
         {
           success: false,
@@ -26,17 +26,17 @@ export async function GET(): Promise<NextResponse<GetRewardsResponse>> {
       );
     }
 
-    console.log(`✅ 特典一覧を取得しました（${data.length}件）`);
+    console.log(`✅ マイルストーン型特典一覧を取得しました（${data.length}件）`);
 
     return NextResponse.json(
       {
         success: true,
-        rewards: data as Reward[],
+        rewards: data as MilestoneReward[],
       },
       { status: 200 }
     );
   } catch (error) {
-    console.error("❌ 特典一覧取得API エラー:", error);
+    console.error("❌ マイルストーン型特典一覧取得API エラー:", error);
     return NextResponse.json(
       {
         success: false,

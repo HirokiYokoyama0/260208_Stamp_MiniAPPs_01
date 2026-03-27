@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { logStampScanSuccess, logStampScanFail } from "@/lib/analytics";
+import { checkMilestones, grantMilestoneReward } from "@/lib/milestones";
 
 /**
  * QRコードスキャンによるスタンプ付与API
@@ -190,6 +191,25 @@ export async function POST(
       `✅ QRスキャンスタンプ登録成功: User ${userId} (${profileData.display_name}), Type: ${type}, Stamps: +${stamps}個, Total: ${finalStampCount}個`
     );
 
+    // マイルストーン判定と特典自動付与
+    const milestones = checkMilestones(currentStampCount, finalStampCount);
+    const grantedRewards = [];
+
+    for (const { milestone, rewardType } of milestones) {
+      try {
+        const exchange = await grantMilestoneReward(userId, milestone, rewardType);
+        grantedRewards.push({
+          milestone,
+          rewardType,
+          exchangeId: exchange.id
+        });
+        console.log(`🎁 マイルストーン特典付与: User ${userId}, ${milestone}スタンプ, ${rewardType}`);
+      } catch (error) {
+        console.error(`❌ マイルストーン特典付与エラー:`, error);
+        // エラーでもスタンプ付与自体は成功しているので処理続行
+      }
+    }
+
     // イベントログ記録
     await logStampScanSuccess({
       stampsAdded: stamps,
@@ -203,6 +223,7 @@ export async function POST(
         message: `${stamps}個のスタンプを獲得しました！`,
         stampCount: finalStampCount,
         stampsAdded: stamps,
+        milestones: grantedRewards.length > 0 ? grantedRewards : undefined,
       },
       { status: 201 }
     );

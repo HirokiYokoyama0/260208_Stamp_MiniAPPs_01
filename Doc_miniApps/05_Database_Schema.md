@@ -5,9 +5,9 @@
 このドキュメントでは、Supabase（PostgreSQL）のデータベース構造を全体的にまとめています。
 
 **作成日:** 2026-02-16
-**最終更新:** 2026-03-15
+**最終更新:** 2026-03-27
 **データベース:** Supabase PostgreSQL
-**バージョン:** 1.6 (Phase 3 stamp_history RLS更新)
+**バージョン:** 1.7 (マイルストーン型特典システム実装)
 
 ---
 
@@ -18,8 +18,10 @@
 | [profiles](#1-profiles-テーブル) | ユーザープロフィール（メインテーブル） | 001_create_profiles_table.sql |
 | [stamp_history](#2-stamp_history-テーブル) | スタンプ取得履歴 | 002_create_stamp_history_table.sql |
 | [families](#3-families-テーブル) | 家族グループ（Phase 2） | 009_add_family_support.sql |
-| [rewards](#4-rewards-テーブル) | 特典マスター | 003_create_rewards_tables.sql |
-| [reward_exchanges](#5-reward_exchanges-テーブル) | 特典交換履歴 | 003_create_rewards_tables.sql |
+| [rewards](#4-rewards-テーブル) | 特典マスター（旧仕様・未使用） | 003_create_rewards_tables.sql |
+| [milestone_rewards](#4b-milestone_rewards-テーブル) | **マイルストーン型特典マスター（新仕様）** | 021_milestone_rewards_migration.sql |
+| [reward_exchanges](#5-reward_exchanges-テーブル) | 特典交換履歴（新旧両対応） | 003_create_rewards_tables.sql + 021 |
+| [milestone_history](#5b-milestone_history-テーブル) | **マイルストーン到達履歴** | 021_milestone_rewards_migration.sql |
 | [activity_logs](#7-activity_logs-テーブル) | スタッフ操作ログ（監査用） | 014_create_activity_logs_table.sql |
 | [event_logs](#8-event_logs-テーブル) | ユーザー行動ログ（分析用） | 015_create_event_logs_table_ForUser.sql |
 | [staff](#9-staff-テーブル) | スタッフアカウント | 013_create_staff_table.sql |
@@ -267,64 +269,93 @@
 
 ### 4. `rewards` テーブル
 
-**説明:** 特典マスター（交換可能な特典の定義）
+**説明:** 特典マスター（旧仕様・手動交換型）
 
 **作成:** `003_create_rewards_tables.sql`
+
+**⚠️ 現在の状態:** データなし（未使用）。新仕様では `milestone_rewards` を使用。
 
 | カラム名 | 型 | NULL許可 | デフォルト | 説明 |
 |---------|---|---------|----------|------|
 | `id` | UUID | NO | gen_random_uuid() | **主キー**: 特典の一意識別子 |
-| `name` | TEXT | NO | - | 特典名（例: 歯ブラシセット） |
-| `description` | TEXT | YES | - | 詳細説明（価格、有効期限、内容詳細） |
-| `required_stamps` | INTEGER | NO | - | 必要なスタンプ数 |
+| `name` | TEXT | NO | - | 特典名 |
+| `description` | TEXT | YES | - | 詳細説明 |
+| `required_stamps` | INTEGER | NO | - | 必要なスタンプ数（固定） |
 | `image_url` | TEXT | YES | - | 特典画像URL（オプション） |
 | `is_active` | BOOLEAN | NO | true | 有効/無効フラグ |
 | `display_order` | INTEGER | NO | 0 | 表示順序 |
 | `created_at` | TIMESTAMPTZ | NO | NOW() | レコード作成日時 |
-| `updated_at` | TIMESTAMPTZ | NO | NOW() | レコード更新日時（トリガーで自動更新） |
+| `updated_at` | TIMESTAMPTZ | NO | NOW() | レコード更新日時 |
 
-**インデックス:**
-- `idx_rewards_active` - is_active + display_order の複合インデックス
+**設計ポイント:**
+- テーブルは保持されているが、データは空（新仕様へ移行済み）
+- 外部キー参照のため削除していない
 
-**制約:**
-- PRIMARY KEY: `id`
+---
 
-**RLS (Row Level Security):**
-- ✅ 有効
-- ポリシー: `allow_public_read_rewards` (is_active = true のみ読み取り可能)
+### 4b. `milestone_rewards` テーブル
 
-**トリガー:**
-- `trigger_update_rewards_updated_at` (BEFORE UPDATE)
-  - 更新時に `updated_at` を自動更新
+**説明:** マイルストーン型特典マスター（新仕様）
 
-**初期データ（サンプル特典）:**
+**作成:** `021_milestone_rewards_migration.sql`
 
-| 特典名 | 必要スタンプ | 詳細 |
-|-------|------------|------|
-| オリジナル歯ブラシセット | 5個 | 当院推奨の歯ブラシ（ふつう/やわらかめ）とフッ素配合歯磨き粉（30g） |
-| フッ素塗布1回無料券 | 10個 | 通常¥1,100 → 無料、有効期限6ヶ月間 |
-| 歯のクリーニング50%OFF券 | 15個 | PMTC 通常¥5,500 → ¥2,750、有効期限3ヶ月間 |
-| ホワイトニング1回30%OFF券 | 20個 | 通常¥16,500 → ¥11,550、有効期限3ヶ月間 |
+| カラム名 | 型 | NULL許可 | デフォルト | 説明 |
+|---------|---|---------|----------|------|
+| `id` | UUID | NO | gen_random_uuid() | **主キー**: 特典の一意識別子 |
+| `name` | TEXT | NO | - | 特典名 |
+| `description` | TEXT | YES | - | 詳細説明 |
+| `milestone_type` | TEXT | NO | - | マイルストーンルール ('every_10', 'every_50', 'every_150_from_300') |
+| `reward_type` | TEXT | NO | - | 特典タイプ ('toothbrush', 'poic', 'premium_menu') |
+| `is_first_time_special` | BOOLEAN | NO | false | 初回特別対応フラグ（POIC用） |
+| `first_time_description` | TEXT | YES | - | 初回の説明文 |
+| `subsequent_description` | TEXT | YES | - | 2回目以降の説明文 |
+| `validity_months` | INTEGER | YES | - | 有効期限（月数、NULL=無期限） |
+| `display_order` | INTEGER | NO | 0 | 表示順序 |
+| `is_active` | BOOLEAN | NO | true | 有効/無効フラグ |
+| `created_at` | TIMESTAMPTZ | NO | NOW() | レコード作成日時 |
+| `updated_at` | TIMESTAMPTZ | NO | NOW() | レコード更新日時 |
+
+**現在のデータ（3件）:**
+
+| 特典名 | milestone_type | reward_type | validity_months |
+|-------|---------------|-------------|----------------|
+| 歯ブラシ 1本 | every_10 | toothbrush | 0（当日限り） |
+| POIC殺菌剤 | every_50 | poic | 5（5ヶ月） |
+| 選べるメニュー割引 | every_150_from_300 | premium_menu | 5（5ヶ月） |
+
+**マイルストーンルール:**
+- `every_10`: 10, 20, 30, 40... 10の倍数ごと
+- `every_50`: 50, 100, 150... 50の倍数ごと
+- `every_150_from_300`: 300, 450, 600... 300以降150の倍数ごと
+
+**優先度:**
+- 複数のマイルストーンが重なる場合、reward_typeの優先度で決定
+- premium_menu > poic > toothbrush
+- 例: 50スタンプ到達 → POICのみ（歯ブラシはスキップ）
 
 ---
 
 ### 5. `reward_exchanges` テーブル
 
-**説明:** 特典交換履歴（誰がいつどの特典と交換したか）
+**説明:** 特典交換履歴（新旧両対応）
 
-**作成:** `003_create_rewards_tables.sql`
+**作成:** `003_create_rewards_tables.sql` + `021_milestone_rewards_migration.sql`
 
 | カラム名 | 型 | NULL許可 | デフォルト | 説明 |
 |---------|---|---------|----------|------|
 | `id` | UUID | NO | gen_random_uuid() | **主キー**: 交換履歴の一意識別子 |
 | `user_id` | TEXT | NO | - | **外部キー**: profiles.id へのリンク |
-| `reward_id` | UUID | NO | - | **外部キー**: rewards.id へのリンク |
+| `reward_id` | UUID | NO | - | rewards.id または milestone_rewards.id（外部キー制約なし） |
 | `stamp_count_used` | INTEGER | NO | - | 使用したスタンプ数（参考値、積み上げ式なので実際は減らない） |
+| `milestone_reached` | INTEGER | YES | - | **到達したマイルストーン**（10, 50, 300...、新仕様のみ） |
+| `is_milestone_based` | BOOLEAN | NO | false | **新仕様フラグ**（true=マイルストーン型、false=旧仕様） |
+| `valid_until` | TIMESTAMPTZ | YES | - | 有効期限（自費メニュー用、新仕様のみ） |
+| `is_first_time` | BOOLEAN | NO | false | 初回特典フラグ（POIC用、新仕様のみ） |
 | `exchanged_at` | TIMESTAMPTZ | NO | NOW() | 交換日時 |
-| `status` | TEXT | NO | 'pending' | ステータス ('pending', 'completed', 'cancelled') |
+| `status` | TEXT | NO | 'pending' | ステータス ('pending', 'completed', 'cancelled', 'expired') |
 | `notes` | TEXT | YES | - | 管理者による備考 |
 | `created_at` | TIMESTAMPTZ | NO | NOW() | レコード作成日時 |
-| `updated_at` | TIMESTAMPTZ | NO | NOW() | レコード更新日時（トリガーで自動更新） |
+| `updated_at` | TIMESTAMPTZ | NO | NOW() | レコード更新日時 |
 
 **インデックス:**
 - `idx_reward_exchanges_user_id` - ユーザーごとの交換履歴検索用
@@ -334,23 +365,55 @@
 **制約:**
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `profiles(id)` ON DELETE CASCADE
-- FOREIGN KEY: `reward_id` → `rewards(id)` ON DELETE CASCADE
+- ⚠️ `reward_id` の外部キー制約は削除済み（新旧両テーブルを参照するため）
+- UNIQUE: `(user_id, reward_id, milestone_reached)` - 同一マイルストーンの重複防止
 
 **RLS (Row Level Security):**
 - ✅ 有効
 - ポリシー: `allow_public_read_exchanges`, `allow_public_insert_exchanges` (開発段階)
 
-**トリガー:**
-- `trigger_update_reward_exchanges_updated_at` (BEFORE UPDATE)
-  - 更新時に `updated_at` を自動更新
-
 **ステータス管理:**
 
 | ステータス | 意味 | 運用 |
 |-----------|------|------|
-| `pending` | 交換申請済み | 受付で特典を提供する前 |
+| `pending` | 受付で確認中 | 特典を提供する前 |
 | `completed` | 提供完了 | 受付で実際に特典を渡した後 |
 | `cancelled` | キャンセル | 誤交換などの取り消し |
+| `expired` | 期限切れ | 有効期限切れ（新仕様のみ） |
+
+**新旧の区別:**
+- `is_milestone_based = true`: 新仕様（マイルストーン型）
+- `is_milestone_based = false`: 旧仕様（手動交換型、現在は未使用）
+
+---
+
+### 5b. `milestone_history` テーブル
+
+**説明:** マイルストーン到達履歴
+
+**作成:** `021_milestone_rewards_migration.sql`
+
+| カラム名 | 型 | NULL許可 | デフォルト | 説明 |
+|---------|---|---------|----------|------|
+| `id` | UUID | NO | gen_random_uuid() | **主キー**: 履歴の一意識別子 |
+| `user_id` | TEXT | NO | - | **外部キー**: profiles.id へのリンク |
+| `milestone` | INTEGER | NO | - | 到達したマイルストーン（10, 20, 50, 100...） |
+| `reward_exchange_id` | UUID | YES | - | 付与された特典のID（reward_exchanges.id） |
+| `reached_at` | TIMESTAMPTZ | NO | NOW() | 到達日時 |
+| `created_at` | TIMESTAMPTZ | NO | NOW() | レコード作成日時 |
+
+**インデックス:**
+- `idx_milestone_history_user` - ユーザーIDでの検索用
+- `idx_milestone_history_milestone` - マイルストーンでの検索用
+
+**制約:**
+- PRIMARY KEY: `id`
+- FOREIGN KEY: `user_id` → `profiles(id)` ON DELETE CASCADE
+- UNIQUE: `(user_id, milestone)` - 同じマイルストーンは1回のみ
+
+**設計ポイント:**
+- スタンプ付与時に自動的にレコードが作成される
+- 同じユーザーが同じマイルストーンに2回到達することを防ぐ
 
 ---
 
@@ -1052,8 +1115,9 @@ CREATE POLICY "allow_public_read" ON profiles FOR SELECT USING (true);
 | 2026-03-01 | 1.4 | **staff / activity_logs / event_logs テーブル追加**：スタッフアカウント・操作ログ・ユーザー行動ログのテーブル定義、ビュー（daily_active_users, event_summary）追記 |
 | 2026-03-07 | 1.5 | **Phase 3 ケア記録機能追加**：patient_dental_records テーブル、8種類のstatus定義（治療中追加）、Supabase RPC関数3つ、019マイグレーション追加 |
 | 2026-03-15 | 1.6 | **stamp_history RLS更新（実測確認に基づく）**：016マイグレーションの DELETE/UPDATE ポリシーとDELETEトリガーを追記、update_profile_on_stamp_delete() 関数追加、マイグレーション順序更新 |
+| 2026-03-27 | 1.7 | **マイルストーン型特典システム実装**：milestone_rewards テーブル追加（3種類の特典）、milestone_history テーブル追加、reward_exchanges テーブルに4つの新カラム追加（milestone_reached, is_milestone_based, valid_until, is_first_time）、外部キー制約削除、021/022マイグレーション追加 |
 
 ---
 
 **作成者:** Claude Code
-**最終更新日:** 2026-03-15
+**最終更新日:** 2026-03-27

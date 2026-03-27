@@ -158,6 +158,39 @@
   - [x] Doc 91: 実装履歴に記録
   - [x] Doc 90: TODO更新（本項目）
 
+### マイルストーン型特典システム実装（2026-03-27）✅
+- [x] データベース設計・マイグレーション
+  - [x] milestone_rewards テーブル作成（3種類の特典マスター）
+  - [x] milestone_history テーブル作成（到達履歴）
+  - [x] reward_exchanges テーブルに4カラム追加（milestone_reached, is_milestone_based, valid_until, is_first_time）
+  - [x] 外部キー制約削除（reward_id → 新旧両テーブル参照のため）
+  - [x] UNIQUE制約追加（user_id, reward_id, milestone_reached）
+- [x] マイルストーン判定ロジック実装
+  - [x] lib/milestones.ts 作成（checkMilestones, grantMilestoneReward）
+  - [x] 優先度ルール実装（premium_menu > poic > toothbrush）
+  - [x] 初回判定（POIC用）、有効期限計算（自費メニュー用）
+- [x] API修正
+  - [x] /api/stamps/auto: マイルストーン判定統合
+  - [x] /api/stamps/scan: マイルストーン判定統合
+  - [x] /api/rewards/exchange: milestone パラメータ追加、milestone_reached に正しい値を保存
+  - [x] /api/rewards: milestone_rewards から取得するように変更
+- [x] フロントエンド実装
+  - [x] AdultRewardsPage.tsx: 500スタンプ単位ページング、優先度ルール適用、milestone パラメータ追加
+  - [x] 交換ボタンに milestone を渡す実装
+  - [x] 有効期限、初回/2回目表示
+- [x] ドキュメント整備
+  - [x] Doc 55: 特典システム_マイルストーン型_実装完了.md（シンプル版）
+  - [x] Doc 58: 管理ダッシュボード開発者へ_交換履歴の仕様変更.md（原因分析追加）
+  - [x] Doc 05: Database_Schema.md 更新（v1.7）
+  - [x] Doc 60: マイルストーン型特典_実装完了レポート.md
+  - [x] Doc 70: 実装完了_15スタンプ対応.md
+  - [x] Doc 90: TODO更新（本項目）
+  - [x] Doc 91: 実装履歴に記録
+- [x] 検証スクリプト作成
+  - [x] scripts/test-dashboard-query.mjs（管理ダッシュボード用クエリテスト）
+  - [x] scripts/check-reward-exchanges.mjs（交換履歴確認）
+  - [x] scripts/check-milestone-rewards.mjs（特典マスター確認）
+
 ---
 
 ## 進行中タスク 🚧

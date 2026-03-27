@@ -1,22 +1,73 @@
-import { Reward, RewardWithStatus, RewardExchange } from "@/types/reward";
+import { Reward, MilestoneReward, RewardWithStatus, RewardExchange } from "@/types/reward";
 import { supabase } from "@/lib/supabase";
 
 /**
- * 特典一覧を取得
+ * マイルストーンタイプから最小スタンプ数を取得
+ */
+function getMinimumStampsForMilestone(milestoneType: string): number {
+  switch (milestoneType) {
+    case 'every_10':
+      return 10;
+    case 'every_50':
+      return 50;
+    case 'every_150_from_300':
+      return 300;
+    default:
+      return 10;
+  }
+}
+
+/**
+ * 特典一覧を取得（新仕様のマイルストーン型を旧仕様互換形式に変換）
  */
 export const fetchRewards = async (): Promise<Reward[]> => {
   try {
-    const response = await fetch("/api/rewards");
-    const data = await response.json();
+    // 新仕様のマイルストーン型特典を取得
+    const milestoneRewards = await fetchMilestoneRewards();
 
-    if (!data.success) {
-      console.error("❌ 特典一覧取得エラー:", data.error);
+    // 旧仕様互換の形式に変換
+    return milestoneRewards.map((mr): Reward => ({
+      id: mr.id,
+      name: mr.name,
+      description: mr.description || '',
+      required_stamps: getMinimumStampsForMilestone(mr.milestone_type),
+      image_url: null,
+      is_active: mr.is_active,
+      display_order: mr.display_order,
+      created_at: mr.created_at,
+      updated_at: mr.updated_at
+    }));
+  } catch (error) {
+    console.error("❌ 特典一覧取得エラー:", error);
+    return [];
+  }
+};
+
+/**
+ * マイルストーン型特典一覧を取得（新仕様）
+ */
+export const fetchMilestoneRewards = async (): Promise<MilestoneReward[]> => {
+  try {
+    console.log("🔍 milestone_rewards テーブルから取得開始...");
+
+    const { data, error } = await supabase
+      .from("milestone_rewards")
+      .select("*")
+      .eq("is_active", true)
+      .order("display_order", { ascending: true });
+
+    if (error) {
+      console.error("❌ マイルストーン特典一覧取得エラー:", error);
+      console.error("❌ エラー詳細:", JSON.stringify(error, null, 2));
       return [];
     }
 
-    return data.rewards;
+    console.log(`✅ milestone_rewards から ${data?.length || 0} 件取得しました`);
+    console.log("📊 取得データ:", JSON.stringify(data, null, 2));
+
+    return data as MilestoneReward[];
   } catch (error) {
-    console.error("❌ 特典一覧取得エラー:", error);
+    console.error("❌ マイルストーン特典一覧取得エラー (catch):", error);
     return [];
   }
 };
@@ -51,7 +102,8 @@ export const fetchUserExchangeHistory = async (
  */
 export const exchangeReward = async (
   userId: string,
-  rewardId: string
+  rewardId: string,
+  milestone?: number
 ): Promise<{
   success: boolean;
   message: string;
@@ -61,7 +113,7 @@ export const exchangeReward = async (
     const response = await fetch("/api/rewards/exchange", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, rewardId }),
+      body: JSON.stringify({ userId, rewardId, milestone }),
     });
 
     const data = await response.json();

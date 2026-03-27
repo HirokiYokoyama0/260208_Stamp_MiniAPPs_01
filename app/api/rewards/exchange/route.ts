@@ -1,10 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { calculateStampDisplay } from "@/lib/stamps";
 import {
   ExchangeRewardRequest,
   ExchangeRewardResponse,
   RewardExchange,
 } from "@/types/reward";
+
+/**
+ * マイルストーンタイプから最小スタンプ数を取得
+ */
+function getMinimumStampsForMilestone(milestoneType: string): number {
+  switch (milestoneType) {
+    case 'every_10':
+      return 10;
+    case 'every_50':
+      return 50;
+    case 'every_150_from_300':
+      return 300;
+    default:
+      return 10;
+  }
+}
+
+/**
+ * 有効期限を計算
+ */
+function calculateValidUntil(validityMonths: number | null): string | null {
+  if (validityMonths === null || validityMonths === undefined) {
+    return null; // 無期限
+  }
+
+  const now = new Date();
+
+  if (validityMonths === 0) {
+    // 当日限り（その日の23:59:59まで）
+    now.setHours(23, 59, 59, 999);
+    return now.toISOString();
+  }
+
+  // n ヶ月後
+  now.setMonth(now.getMonth() + validityMonths);
+  return now.toISOString();
+}
 
 /**
  * POST /api/rewards/exchange
@@ -15,10 +53,13 @@ export async function POST(
 ): Promise<NextResponse<ExchangeRewardResponse>> {
   try {
     const body: ExchangeRewardRequest = await request.json();
-    const { userId, rewardId } = body;
+    const { userId, rewardId, milestone } = body;
+
+    console.log('🔍 交換リクエスト:', { userId, rewardId, milestone });
 
     // バリデーション
     if (!userId || !rewardId) {
+      console.log('❌ バリデーションエラー: userId または rewardId が不足');
       return NextResponse.json(
         {
           success: false,
@@ -29,9 +70,10 @@ export async function POST(
       );
     }
 
-    // 1. 特典情報を取得
+    // 1. 特典情報を取得（マイルストーン型特典）
+    console.log('📊 milestone_rewards から特典を取得中... rewardId:', rewardId);
     const { data: reward, error: rewardError } = await supabase
-      .from("rewards")
+      .from("milestone_rewards")
       .select("*")
       .eq("id", rewardId)
       .eq("is_active", true)
@@ -70,12 +112,18 @@ export async function POST(
 
     const currentStampCount = profile.stamp_count ?? 0;
 
-    // 3. スタンプ数の確認
-    if (currentStampCount < reward.required_stamps) {
+    // 3. スタンプ数の確認（マイルストーン型は常に交換可能）
+    // マイルストーン型特典は到達済みマイルストーンなので、
+    // フロントエンドで制御済み。ここでは最小限のチェックのみ
+    const { fullStamps } = calculateStampDisplay(currentStampCount);
+
+    // 最小スタンプ数のチェック
+    const minStamps = getMinimumStampsForMilestone(reward.milestone_type);
+    if (fullStamps < minStamps) {
       return NextResponse.json(
         {
           success: false,
-          message: `スタンプが不足しています（現在${currentStampCount}個、必要${reward.required_stamps}個）`,
+          message: `スタンプが不足しています（現在${fullStamps}個）`,
           error: "Insufficient stamps",
         },
         { status: 400 }
@@ -83,15 +131,22 @@ export async function POST(
     }
 
     // 4. pending チェック（重複防止）
+    // マイルストーン型の場合、同じ特典でもマイルストーンが違えば別の申請
+    console.log('🔍 既存のpending申請をチェック中...');
     const { data: existingPending } = await supabase
       .from("reward_exchanges")
-      .select("id")
+      .select("id, milestone_reached")
       .eq("user_id", userId)
       .eq("reward_id", rewardId)
+      .eq("milestone_reached", milestone || fullStamps) // マイルストーン一致もチェック
       .eq("status", "pending")
       .maybeSingle();
 
+    console.log('既存のpending:', existingPending);
+    console.log('今回のmilestone:', milestone);
+
     if (existingPending) {
+      console.log('❌ 既にpending申請が存在します (同じマイルストーン)');
       return NextResponse.json(
         {
           success: false,
@@ -105,16 +160,40 @@ export async function POST(
     // 5. 【重要】積み上げ式: スタンプは絶対に減らさない！
     // profiles.stamp_count の更新は一切行わない
 
-    // 6. 交換履歴を記録（pending）
+    // 6. 初回判定（POIC用）
+    let isFirstTime = false;
+    if (reward.reward_type === 'poic') {
+      const { data: existingPoic } = await supabase
+        .from('reward_exchanges')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('reward_id', rewardId)
+        .eq('is_milestone_based', true)
+        .limit(1);
+
+      isFirstTime = !existingPoic || existingPoic.length === 0;
+    }
+
+    // 7. 有効期限計算
+    const validUntil = calculateValidUntil(reward.validity_months);
+
+    // 8. 交換履歴を記録（pending）
+    const insertData = {
+      user_id: userId,
+      reward_id: rewardId,
+      stamp_count_used: milestone || fullStamps,
+      milestone_reached: milestone || fullStamps,
+      status: "pending" as const,
+      valid_until: validUntil,
+      is_first_time: isFirstTime,
+      is_milestone_based: true,
+      notes: `特典交換: ${reward.name} (${milestone || fullStamps}スタンプ到達)`,
+    };
+    console.log('💾 交換履歴を記録中:', insertData);
+
     const { data: exchange, error: exchangeError } = await supabase
       .from("reward_exchanges")
-      .insert({
-        user_id: userId,
-        reward_id: rewardId,
-        stamp_count_used: reward.required_stamps, // 記録用（減算はしない）
-        status: "pending",
-        notes: `特典交換: ${reward.name}`,
-      })
+      .insert(insertData)
       .select()
       .single();
 

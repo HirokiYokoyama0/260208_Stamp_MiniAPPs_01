@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { checkMilestones, grantMilestoneReward } from "@/lib/milestones";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -137,11 +138,31 @@ export async function POST(req: Request) {
 
     console.log(`✅ QRスタンプ自動付与成功: ${userId} (+${amount}個 → 合計${newStampNumber}個)`);
 
+    // マイルストーン判定と特典自動付与
+    const milestones = checkMilestones(currentStampCount, newStampNumber);
+    const grantedRewards = [];
+
+    for (const { milestone, rewardType } of milestones) {
+      try {
+        const exchange = await grantMilestoneReward(userId, milestone, rewardType);
+        grantedRewards.push({
+          milestone,
+          rewardType,
+          exchangeId: exchange.id
+        });
+        console.log(`🎁 マイルストーン特典付与: User ${userId}, ${milestone}スタンプ, ${rewardType}`);
+      } catch (error) {
+        console.error(`❌ マイルストーン特典付与エラー:`, error);
+        // エラーでもスタンプ付与自体は成功しているので処理続行
+      }
+    }
+
     return NextResponse.json({
       success: true,
       stampCount: newStampNumber,
       addedAmount: amount,
       message: `スタンプを${amount}個獲得しました！`,
+      milestones: grantedRewards.length > 0 ? grantedRewards : undefined,
     });
 
   } catch (error) {
