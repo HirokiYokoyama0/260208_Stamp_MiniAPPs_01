@@ -404,12 +404,27 @@ export default function AdultRewardsPage() {
               特典交換ページ
             </h1>
             <p className="mt-1 text-sm text-gray-600">
-              貯まったスタンプで特典と交換できます
+              マイルストーン到達で自動的に特典が付与されます
             </p>
             <p className="mt-1 text-xs font-medium text-primary-dark">
-              ✨ スタンプは交換後も減りません
+              ✨ スタンプは減りません！何度でも特典をゲット
             </p>
           </div>
+        </div>
+
+        {/* 重要なお知らせ */}
+        <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3">
+          <p className="text-xs font-bold text-amber-800 mb-2">⚠️ 重要：有効期限について</p>
+          <ul className="text-xs text-amber-700 space-y-1">
+            <li className="flex items-start gap-2">
+              <span className="text-amber-500">•</span>
+              <span><span className="font-bold">歯ブラシ</span>：スタンプ到達日の当日中（23:59まで）</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-amber-500">•</span>
+              <span><span className="font-bold">POIC・選べるメニュー</span>：スタンプ到達日から5ヶ月間</span>
+            </li>
+          </ul>
         </div>
 
         {/* 特典ルールの説明 */}
@@ -418,15 +433,15 @@ export default function AdultRewardsPage() {
           <ul className="space-y-1">
             <li className="flex items-start gap-2">
               <span className="text-primary">•</span>
-              <span><span className="font-medium">10の倍数</span>：歯ブラシ 1本</span>
+              <span><span className="font-medium">10の倍数</span>：歯ブラシ 1本（当日限り）</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary">•</span>
-              <span><span className="font-medium">50の倍数</span>：POIC殺菌剤（初回本体込み）</span>
+              <span><span className="font-medium">50の倍数</span>：POIC殺菌剤（初回本体込み / 5ヶ月有効）</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary">•</span>
-              <span><span className="font-medium">300個到達、以降150ごと</span>：選べるメニュー割引</span>
+              <span><span className="font-medium">300個到達、以降150ごと</span>：選べるメニュー割引（5ヶ月有効）</span>
             </li>
           </ul>
           <p className="mt-2 text-gray-500">

@@ -21,6 +21,34 @@ interface QRPayload {
   stamps: number;  // スタンプ個数（pointsではない）
 }
 
+// 特典名を取得
+const getRewardName = (rewardType: string): string => {
+  switch (rewardType) {
+    case 'toothbrush':
+      return '歯ブラシ 1本';
+    case 'poic':
+      return 'POIC殺菌剤';
+    case 'premium_menu':
+      return '選べるメニュー';
+    default:
+      return '特典';
+  }
+};
+
+// 有効期限の説明を取得
+const getValidityDescription = (rewardType: string): string => {
+  switch (rewardType) {
+    case 'toothbrush':
+      return '今日中（23:59まで）';
+    case 'poic':
+      return '5ヶ月間';
+    case 'premium_menu':
+      return '5ヶ月間';
+    default:
+      return '';
+  }
+};
+
 export default function QRScanPage() {
   const router = useRouter();
   const { profile, isLoading: liffLoading } = useLiff();
@@ -30,6 +58,11 @@ export default function QRScanPage() {
     message: string;
     stampCount?: number;
     stampsAdded?: number;
+    milestones?: Array<{
+      milestone: number;
+      rewardType: string;
+      exchangeId: string;
+    }>;
   } | null>(null);
   const [error, setError] = useState('');
 
@@ -128,6 +161,7 @@ export default function QRScanPage() {
           message: data.message,
           stampCount: data.stampCount,
           stampsAdded: data.stampsAdded,
+          milestones: data.milestones,
         });
       } else {
         setError(data.message || 'スタンプの付与に失敗しました');
@@ -185,6 +219,59 @@ export default function QRScanPage() {
           </div>
         </div>
 
+        {/* マイルストーン達成通知 */}
+        {scanResult && scanResult.success && scanResult.milestones && scanResult.milestones.length > 0 && (
+          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl shadow-lg p-6 animate-bounce-once">
+            <div className="text-center mb-4">
+              <p className="text-3xl mb-2">🎉</p>
+              <p className="text-xl font-bold text-orange-800 mb-1">マイルストーン達成！</p>
+              <p className="text-sm text-orange-700">特典を獲得しました</p>
+            </div>
+
+            <div className="space-y-3">
+              {scanResult.milestones.map((m, index) => (
+                <div key={index} className="bg-white rounded-lg p-4 border border-yellow-200">
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">🎁</div>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-800 mb-1">
+                        {m.milestone}個目：{getRewardName(m.rewardType)}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {m.rewardType === 'toothbrush'
+                          ? '✨ 当日限り（今日の23:59まで）'
+                          : m.rewardType === 'poic'
+                          ? '初回：殺菌剤ボトル＋詰め替え用'
+                          : '選べるメニュー割引'}
+                      </p>
+                      <div className={`text-xs font-medium ${
+                        m.rewardType === 'toothbrush'
+                          ? 'text-red-600'
+                          : 'text-blue-600'
+                      }`}>
+                        有効期限: {getValidityDescription(m.rewardType)}
+                      </div>
+                      {m.rewardType === 'toothbrush' && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                          <p className="text-xs text-red-700 font-medium">
+                            ⚠️ 今日中に受付でお受け取りください！
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 text-center">
+              <p className="text-sm text-orange-700 font-medium">
+                受付でお声がけください
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* スキャン結果 */}
         {scanResult && (
           <div className={`rounded-xl shadow-md p-6 border-2 ${
@@ -213,7 +300,13 @@ export default function QRScanPage() {
               </div>
             </div>
             {scanResult.success && (
-              <div className="mt-4">
+              <div className="mt-4 space-y-2">
+                <Link
+                  href="/rewards"
+                  className="block w-full bg-orange-500 text-white text-center font-bold py-3 rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  特典を確認する
+                </Link>
                 <Link
                   href="/"
                   className="block w-full bg-primary text-white text-center font-bold py-3 rounded-lg hover:bg-primary-dark transition-colors"
