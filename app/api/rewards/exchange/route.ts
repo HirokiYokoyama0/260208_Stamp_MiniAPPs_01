@@ -130,12 +130,12 @@ export async function POST(
       );
     }
 
-    // 4. pending チェック（重複防止）
+    // 4. pending チェック（重複防止） + 有効期限チェック
     // マイルストーン型の場合、同じ特典でもマイルストーンが違えば別の申請
     console.log('🔍 既存のpending申請をチェック中...');
     const { data: existingPending } = await supabase
       .from("reward_exchanges")
-      .select("id, milestone_reached")
+      .select("id, milestone_reached, valid_until, status")
       .eq("user_id", userId)
       .eq("reward_id", rewardId)
       .eq("milestone_reached", milestone || fullStamps) // マイルストーン一致もチェック
@@ -146,15 +146,44 @@ export async function POST(
     console.log('今回のmilestone:', milestone);
 
     if (existingPending) {
-      console.log('❌ 既にpending申請が存在します (同じマイルストーン)');
-      return NextResponse.json(
-        {
-          success: false,
-          message: "この特典は申請中です。受付でお受け取りください。",
-          error: "Already pending",
-        },
-        { status: 400 }
-      );
+      // 既存のpending申請がある場合、有効期限をチェック
+      if (existingPending.valid_until) {
+        const now = new Date();
+        const validUntil = new Date(existingPending.valid_until);
+
+        if (validUntil < now) {
+          // 期限切れの場合、自動的にexpiredに更新
+          console.log('⏰ 既存の申請が期限切れのため、expired に更新します');
+          await supabase
+            .from("reward_exchanges")
+            .update({ status: "expired" })
+            .eq("id", existingPending.id);
+
+          // 期限切れ処理後、新規申請として続行
+        } else {
+          // まだ有効な場合は重複エラー
+          console.log('❌ 既にpending申請が存在します (同じマイルストーン)');
+          return NextResponse.json(
+            {
+              success: false,
+              message: "この特典は申請中です。受付でお受け取りください。",
+              error: "Already pending",
+            },
+            { status: 400 }
+          );
+        }
+      } else {
+        // 有効期限がない場合は重複エラー
+        console.log('❌ 既にpending申請が存在します (同じマイルストーン)');
+        return NextResponse.json(
+          {
+            success: false,
+            message: "この特典は申請中です。受付でお受け取りください。",
+            error: "Already pending",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // 5. 【重要】積み上げ式: スタンプは絶対に減らさない！

@@ -18,8 +18,11 @@ interface MilestoneRewardWithStatus extends MilestoneReward {
   isPending: boolean; // 申請中
   isCompleted: boolean; // 引渡済み
   isCancelled: boolean; // キャンセル済み
+  isExpired: boolean; // 期限切れ
   latestExchange: RewardExchange | null;
   nextMilestone: number; // 次のマイルストーン
+  validUntil: string | null; // 有効期限
+  daysRemaining: number | null; // 残り日数
 }
 
 export default function AdultRewardsPage() {
@@ -31,6 +34,36 @@ export default function AdultRewardsPage() {
   const [exchangeHistory, setExchangeHistory] = useState<RewardExchange[]>([]);
   const [isLoadingRewards, setIsLoadingRewards] = useState(true);
   const [isExchanging, setIsExchanging] = useState(false);
+
+  // 有効期限チェック関数
+  const checkExpiration = (exchange: RewardExchange | null): { isExpired: boolean; daysRemaining: number | null } => {
+    if (!exchange || !exchange.valid_until) {
+      return { isExpired: false, daysRemaining: null };
+    }
+
+    const now = new Date();
+    const validUntil = new Date(exchange.valid_until);
+    const isExpired = validUntil < now;
+
+    // 残り日数を計算
+    const diffMs = validUntil.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    return {
+      isExpired,
+      daysRemaining: isExpired ? null : diffDays,
+    };
+  };
+
+  // 日付フォーマット関数
+  const formatValidUntil = (isoString: string): string => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  };
 
   // 特典交換に使用するスタンプ数（家族がいる場合は家族合算、いない場合は個人）
   const effectiveStampCount = familyId && familyStampCount !== null ? familyStampCount : stampCount;
@@ -102,14 +135,32 @@ export default function AdultRewardsPage() {
           )
           .sort((a, b) => new Date(b.exchanged_at).getTime() - new Date(a.exchanged_at).getTime())[0] || null;
 
+        // 有効期限チェック
+        const expirationCheck = latestExchange?.valid_until
+          ? (() => {
+              const now = new Date();
+              const validUntil = new Date(latestExchange.valid_until);
+              const isExpired = validUntil < now;
+              const diffMs = validUntil.getTime() - now.getTime();
+              const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+              return {
+                isExpired,
+                daysRemaining: isExpired ? null : diffDays,
+              };
+            })()
+          : { isExpired: false, daysRemaining: null };
+
         const rewardWithStatus: MilestoneRewardWithStatus = {
           ...reward,
           canExchange: currentFullStamps >= milestone,
           isPending: latestExchange?.status === 'pending',
           isCompleted: latestExchange?.status === 'completed',
           isCancelled: latestExchange?.status === 'cancelled',
+          isExpired: latestExchange?.status === 'expired' || expirationCheck.isExpired,
           latestExchange,
           nextMilestone: milestone,
+          validUntil: latestExchange?.valid_until || null,
+          daysRemaining: expirationCheck.daysRemaining,
         };
 
         // マイルストーンごとにグループ化
@@ -141,7 +192,16 @@ export default function AdultRewardsPage() {
 
       setIsLoadingRewards(true);
       try {
-        // 並行して取得
+        // 1. 期限切れの自動更新（Phase 2推奨機能）
+        await supabase
+          .from("reward_exchanges")
+          .update({ status: "expired" })
+          .eq("user_id", profile.userId)
+          .eq("status", "pending")
+          .lt("valid_until", new Date().toISOString())
+          .not("valid_until", "is", null);
+
+        // 2. 並行して取得
         const [count, history, profileData] = await Promise.all([
           fetchStampCount(profile.userId),
           fetchUserExchangeHistory(profile.userId),
@@ -426,7 +486,9 @@ export default function AdultRewardsPage() {
               <li
                 key={`${reward.id}-${reward.nextMilestone}`}
                 className={`rounded-xl border bg-white p-5 shadow-sm transition-all ${
-                  reward.isCompleted
+                  reward.isExpired
+                    ? "border-gray-300 bg-gray-50"
+                    : reward.isCompleted
                     ? "border-green-300 bg-green-50"
                     : reward.isCancelled
                     ? "border-red-300 bg-red-50"
@@ -441,7 +503,9 @@ export default function AdultRewardsPage() {
                   {/* アイコン */}
                   <div
                     className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${
-                      reward.isCompleted
+                      reward.isExpired
+                        ? "bg-gray-200"
+                        : reward.isCompleted
                         ? "bg-green-200"
                         : reward.isCancelled
                         ? "bg-red-200"
@@ -452,7 +516,9 @@ export default function AdultRewardsPage() {
                         : "bg-gray-100"
                     }`}
                   >
-                    {reward.isCompleted ? (
+                    {reward.isExpired ? (
+                      <X size={28} className="text-gray-600" strokeWidth={2} />
+                    ) : reward.isCompleted ? (
                       <Check
                         size={28}
                         className="text-green-600"
@@ -511,28 +577,74 @@ export default function AdultRewardsPage() {
                       })()}
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {reward.validity_months !== null && (
+                      {/* 期限切れバッジ */}
+                      {reward.isExpired && reward.validUntil && (
+                        <span className="rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-700">
+                          ⚠️ 有効期限切れ（{formatValidUntil(reward.validUntil)}）
+                        </span>
+                      )}
+
+                      {/* 有効期限表示（期限切れでない場合のみ） */}
+                      {!reward.isExpired && reward.isPending && reward.validUntil && (
+                        <>
+                          {reward.daysRemaining !== null && reward.daysRemaining === 0 && (
+                            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                              ⚠️ 今日まで有効
+                            </span>
+                          )}
+                          {reward.daysRemaining !== null && reward.daysRemaining === 1 && (
+                            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                              明日まで有効
+                            </span>
+                          )}
+                          {reward.daysRemaining !== null && reward.daysRemaining > 1 && (
+                            <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-700">
+                              あと{reward.daysRemaining}日有効
+                            </span>
+                          )}
+                        </>
+                      )}
+
+                      {/* マイルストーン型の有効期限説明（申請前） */}
+                      {!reward.isPending && !reward.isCompleted && !reward.isCancelled && reward.validity_months !== null && (
                         <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-700">
                           {reward.validity_months === 0 ? "当日限り" : `有効期限: ${reward.validity_months}ヶ月`}
                         </span>
                       )}
+
                       {!reward.canExchange && (
                         <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
                           あと{reward.nextMilestone - fullStamps}個
                         </span>
                       )}
-                      {reward.canExchange && !reward.isPending && !reward.isCompleted && !reward.isCancelled && (
+                      {reward.canExchange && !reward.isPending && !reward.isCompleted && !reward.isCancelled && !reward.isExpired && (
                         <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
                           交換可能！
                         </span>
                       )}
                     </div>
+
+                    {/* 歯ブラシ当日限り警告 */}
+                    {!reward.isExpired && reward.isPending && reward.reward_type === 'toothbrush' && reward.daysRemaining !== null && reward.daysRemaining === 0 && (
+                      <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-3">
+                        <p className="text-xs text-amber-800 font-medium">
+                          ⚠️ この特典は今日限り有効です！お早めにお受け取りください。
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* 交換ボタン */}
                 <div className="mt-4">
-                  {reward.isCompleted ? (
+                  {reward.isExpired ? (
+                    <button
+                      disabled
+                      className="w-full cursor-not-allowed rounded-lg bg-gray-200 px-4 py-3 text-sm font-medium text-gray-600"
+                    >
+                      有効期限切れ
+                    </button>
+                  ) : reward.isCompleted ? (
                     <button
                       disabled
                       className="w-full cursor-not-allowed rounded-lg bg-green-100 px-4 py-3 text-sm font-medium text-green-700"
