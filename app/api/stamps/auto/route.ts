@@ -203,6 +203,10 @@ export async function POST(req: Request) {
         newStampCount: newStampNumber,
         stampHistoryId: historyData?.id,
         milestonesGranted: grantedRewards,
+        // 🆕 リクエスト生パラメータを記録（15スタンプ問題調査用）
+        requestAmount: amount,
+        requestLocation: location,
+        requestType: type,
       });
 
       if (!logResult.success) {

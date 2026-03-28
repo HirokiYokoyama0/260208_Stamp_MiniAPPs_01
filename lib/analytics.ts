@@ -203,6 +203,10 @@ export const logStampScanSuccess = (params: {
   newStampCount?: number;
   stampHistoryId?: string;
   milestonesGranted?: Array<{ milestone: number; rewardType: string; exchangeId: string }>;
+  // 🆕 リクエスト生パラメータ（15スタンプ問題調査用）
+  requestAmount?: number;        // APIリクエストで受け取ったamount/stamps
+  requestLocation?: string;      // APIリクエストで受け取ったlocation（カメラQRのみ）
+  requestType?: string;          // APIリクエストで受け取ったtype
 }) => {
   // スキャン方法に応じてイベント名を分ける
   const eventName = params.scanMethod === 'in_app'
@@ -220,6 +224,10 @@ export const logStampScanSuccess = (params: {
       new_stamp_count: params.newStampCount,
       stamp_history_id: params.stampHistoryId,
       milestones_granted: params.milestonesGranted,
+      // 🆕 リクエスト生パラメータを記録
+      request_amount: params.requestAmount,
+      request_location: params.requestLocation,
+      request_type: params.requestType,
     },
   });
 };

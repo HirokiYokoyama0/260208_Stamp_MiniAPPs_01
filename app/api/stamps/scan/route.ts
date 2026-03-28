@@ -114,13 +114,28 @@ export async function POST(
       const startOfDayUTC = `${todayJST}T00:00:00+09:00`; // JSTの0時をISO形式で
       const endOfDayUTC = `${todayJST}T23:59:59.999+09:00`; // JSTの23:59:59をISO形式で
 
+      console.log('🔍 [1日1回制限チェック] 検索条件:', {
+        userId: userId.substring(0, 8) + '...',
+        stamp_method: 'qr',
+        startOfDayUTC,
+        endOfDayUTC,
+        nowUTC: new Date().toISOString(),
+        nowJST: nowJST.toISOString(),
+      });
+
       const { data: todayQrRecords, error: qrCheckError } = await supabase
         .from("stamp_history")
-        .select("id, stamp_method, notes")
+        .select("id, stamp_method, notes, visit_date, amount, stamp_number")
         .eq("user_id", userId)
         .eq("stamp_method", "qr")
         .gte("visit_date", startOfDayUTC)
         .lt("visit_date", endOfDayUTC);
+
+      console.log('🔍 [1日1回制限チェック] 検索結果:', {
+        recordCount: todayQrRecords?.length || 0,
+        records: todayQrRecords,
+        error: qrCheckError,
+      });
 
       if (qrCheckError) {
         console.error("❌ 1日1回制限チェックエラー:", qrCheckError);
@@ -136,6 +151,14 @@ export async function POST(
 
       if (todayQrRecords && todayQrRecords.length > 0) {
         console.log(`⚠️ 1日1回制限: User ${userId} は本日既にQRスタンプを取得済み`);
+        console.log('📋 [1日1回制限] 既存レコード詳細:', todayQrRecords.map(r => ({
+          id: r.id,
+          visit_date: r.visit_date,
+          amount: r.amount,
+          stamp_number: r.stamp_number,
+          notes: r.notes,
+        })));
+
         await logStampScanFail({
           error: "Already received QR stamp today",
           userId: userId,
@@ -153,6 +176,8 @@ export async function POST(
           { status: 409 } // 409 Conflict
         );
       }
+
+      console.log('✅ [1日1回制限チェック] 本日のQRスタンプなし、スキャン可能');
     }
 
     const currentStampCount = profileData.stamp_count ?? 0;
@@ -238,6 +263,9 @@ export async function POST(
         newStampCount: finalStampCount,
         stampHistoryId: stampData?.id,
         milestonesGranted: grantedRewards,
+        // 🆕 リクエスト生パラメータを記録（15スタンプ問題調査用）
+        requestAmount: stamps,
+        requestType: type,
       });
 
       if (!logResult.success) {

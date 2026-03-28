@@ -128,6 +128,17 @@ export async function POST(
 
     console.log(`✅ [Delete Today QR] 削除成功: ${todayScans.length}件削除, -${totalAmount}ポイント`);
 
+    // 🔍 デバッグ: 削除後のstamp_historyを確認
+    const { data: afterDelete } = await supabase
+      .from("stamp_history")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("stamp_method", "qr")
+      .gte("visit_date", startOfDay)
+      .lt("visit_date", endOfDay);
+
+    console.log(`🔍 [Delete Today QR] 削除後の本日QRレコード数: ${afterDelete?.length || 0}件`, afterDelete);
+
     // 🆕 イベントログ送信（スタッフ操作の記録）
     await logStampDeleteTodayQR({
       targetUserId: userId,
