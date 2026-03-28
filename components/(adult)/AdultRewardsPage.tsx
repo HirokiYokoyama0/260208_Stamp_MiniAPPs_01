@@ -580,7 +580,11 @@ export default function AdultRewardsPage() {
                       </span>
                       <span className="text-sm text-gray-500">個目</span>
                     </div>
-                    <h3 className="mt-1 text-lg font-semibold text-gray-800">
+                    <h3 className="mt-1 text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      {/* POIC と 選べるメニュー は ★★ で目立たせる */}
+                      {(reward.reward_type === 'poic' || reward.reward_type === 'premium_menu') && (
+                        <span className="text-yellow-500 text-xl">★★</span>
+                      )}
                       {reward.name}
                     </h3>
                     <p className="mt-1 text-sm text-gray-600">
