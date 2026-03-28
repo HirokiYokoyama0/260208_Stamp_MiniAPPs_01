@@ -43,39 +43,55 @@ export async function POST(
       );
     }
 
-    // 重複チェック: 同日同QRの登録済みチェック
-    const today = new Date().toISOString().split("T")[0];
-    const { data: existing, error: checkError } = await supabase
-      .from("stamp_history")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("qr_code_id", qrCodeId)
-      .gte("visit_date", `${today}T00:00:00`)
-      .lt("visit_date", `${today}T23:59:59`)
-      .maybeSingle();
-
-    if (checkError && checkError.code !== "PGRST116") {
-      // PGRST116 = "not found" は正常（重複なし）
-      console.error("重複チェックエラー:", checkError);
-      return NextResponse.json(
-        {
-          success: false,
-          message: "重複チェックに失敗しました",
-          error: checkError.message,
-        },
-        { status: 500 }
-      );
+    // QRコードペイロードのパース（タイプ判定用）
+    let qrType: 'regular' | 'premium' | 'purchase' = 'regular';
+    try {
+      const qrPayload = JSON.parse(qrCodeId);
+      if (qrPayload.type && ['regular', 'premium', 'purchase'].includes(qrPayload.type)) {
+        qrType = qrPayload.type;
+      }
+    } catch {
+      // JSONパースエラー = 通常のQRコードID、デフォルト値を使用
     }
 
-    if (existing) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "本日すでにスタンプを取得済みです",
-          error: "Duplicate stamp",
-        },
-        { status: 400 }
-      );
+    // 購買インセンティブ以外は1日1回制限チェック
+    if (qrType !== 'purchase') {
+      // 重複チェック: 同日同QRの登録済みチェック
+      const today = new Date().toISOString().split("T")[0];
+      const { data: existing, error: checkError } = await supabase
+        .from("stamp_history")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("qr_code_id", qrCodeId)
+        .gte("visit_date", `${today}T00:00:00`)
+        .lt("visit_date", `${today}T23:59:59`)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== "PGRST116") {
+        // PGRST116 = "not found" は正常（重複なし）
+        console.error("重複チェックエラー:", checkError);
+        return NextResponse.json(
+          {
+            success: false,
+            message: "重複チェックに失敗しました",
+            error: checkError.message,
+          },
+          { status: 500 }
+        );
+      }
+
+      if (existing) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "本日すでにスタンプを取得済みです",
+            error: "Duplicate stamp",
+          },
+          { status: 400 }
+        );
+      }
+    } else {
+      console.log(`🛒 [Stamps API] 購買インセンティブ: 1日1回制限をスキップ`);
     }
 
     // 現在のスタンプ数を取得（次のstamp_numberを決定するため）
@@ -99,13 +115,13 @@ export async function POST(
 
     const currentStampCount = profileData?.stamp_count ?? 0;
 
-    // QRコードからスタンプ数を解析
+    // QRコードからスタンプ数を解析（タイプは既に取得済み）
     let stampAmount = STAMP_AMOUNTS.REGULAR_VISIT; // デフォルト: +10個
     try {
       const qrPayload = JSON.parse(qrCodeId);
       if (qrPayload.stamps && typeof qrPayload.stamps === 'number') {
         stampAmount = qrPayload.stamps; // QRコードの stamps 値を使用
-        console.log(`📱 [Stamps API] QRコードから読み取り: ${stampAmount}個`);
+        console.log(`📱 [Stamps API] QRコードから読み取り: ${stampAmount}個, type: ${qrType}`);
       }
     } catch {
       // JSONパースエラー = 通常のQRコードID、デフォルト値を使用
@@ -120,9 +136,12 @@ export async function POST(
         user_id: userId,
         visit_date: new Date().toISOString(),
         stamp_number: nextStampNumber,
-        stamp_method: "qr_scan",
+        stamp_method: qrType === 'purchase' ? 'purchase_incentive' : 'qr',
         qr_code_id: qrCodeId,
         amount: stampAmount, // 今回付与したスタンプ数
+        notes: qrType === 'purchase'
+          ? "購買インセンティブ（ホームボタン）"
+          : `ホームボタンスキャン (${qrType})`,
       })
       .select()
       .single();
