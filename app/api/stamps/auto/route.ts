@@ -74,12 +74,14 @@ export async function POST(req: Request) {
 
         // イベントログ記録（失敗: 重複スキャン）
         try {
+          const stampType = location === "shop" ? "purchase" :
+                           amount === 15 ? "premium" : "regular";
           await logStampScanFail({
             error: "Already received QR stamp today",
             userId: userId,
             errorType: "duplicate_scan",
             httpStatus: 409,
-            requestType: location === "shop" ? "purchase" : "premium",
+            requestType: stampType,
             requestStamps: amount,
           });
         } catch (logError) {
@@ -180,9 +182,13 @@ export async function POST(req: Request) {
 
     // イベントログ記録（詳細情報追加）
     try {
+      // スタンプタイプを正しく判定
+      const stampType = location === "shop" ? "purchase" :
+                       amount === 15 ? "premium" : "regular";
+
       console.log('🔍 [API/Auto] スタンプスキャン成功ログを送信:', {
         stampsAdded: amount,
-        type: location === "shop" ? "purchase" : "premium",
+        type: stampType,
         userId: userId.substring(0, 8) + '...',
         currentStampCount,
         newStampCount: newStampNumber,
@@ -190,7 +196,7 @@ export async function POST(req: Request) {
 
       const logResult = await logStampScanSuccess({
         stampsAdded: amount,
-        type: location === "shop" ? "purchase" : "premium",
+        type: stampType,
         userId: userId,
         currentStampCount: currentStampCount,
         newStampCount: newStampNumber,
