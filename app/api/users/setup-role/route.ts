@@ -6,6 +6,7 @@ interface SetupRoleRequest {
   role: "parent" | "child";
   ticketNumber?: string; // 会員証番号
   realName?: string; // 本名
+  birthMonth?: number | null; // 誕生月
 }
 
 /**
@@ -15,7 +16,7 @@ interface SetupRoleRequest {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body: SetupRoleRequest = await request.json();
-    const { userId, role, ticketNumber, realName } = body;
+    const { userId, role, ticketNumber, realName, birthMonth } = body;
 
     // バリデーション
     if (!userId || !role) {
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
       }
 
-      // プロフィールを更新（会員証番号・本名も含む）
+      // プロフィールを更新（会員証番号・本名・誕生月も含む）
       const updateData: any = {
         family_id: newFamily.id,
         family_role: "parent",
@@ -95,6 +96,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       if (realName) {
         updateData.real_name = realName;
+      }
+
+      if (birthMonth !== undefined) {
+        updateData.birth_month = birthMonth;
       }
 
       const { error: updateError } = await supabase
@@ -125,7 +130,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 201 }
       );
     } else {
-      // 子の場合: family_role だけ設定（会員証番号・本名も含む）
+      // 子の場合: family_role だけ設定（会員証番号・本名・誕生月も含む）
       const updateData: any = {
         family_role: "child",
       };
@@ -136,6 +141,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       if (realName) {
         updateData.real_name = realName;
+      }
+
+      if (birthMonth !== undefined) {
+        updateData.birth_month = birthMonth;
       }
 
       const { error: updateError } = await supabase

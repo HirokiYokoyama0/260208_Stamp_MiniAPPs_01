@@ -17,6 +17,7 @@ export default function OnboardingPage() {
   // プロフィール入力
   const [ticketNumber, setTicketNumber] = useState('');
   const [realName, setRealName] = useState('');
+  const [birthMonth, setBirthMonth] = useState<number | null>(null);
 
   // Step 1: プロフィール入力完了
   const handleProfileSubmit = async () => {
@@ -46,7 +47,7 @@ export default function OnboardingPage() {
     setError('');
 
     try {
-      // 役割設定と同時に会員証番号・本名も保存
+      // 役割設定と同時に会員証番号・本名・誕生月も保存
       const res = await fetch('/api/users/setup-role', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -55,6 +56,7 @@ export default function OnboardingPage() {
           role,
           ticketNumber: ticketNumber.trim(),
           realName: realName.trim(),
+          birthMonth: birthMonth, // 誕生月も送信
         }),
       });
 
@@ -165,6 +167,35 @@ export default function OnboardingPage() {
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   会員証に記載されているお名前を入力してください
+                </p>
+              </div>
+
+              {/* 誕生月 */}
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700">
+                  誕生月 <span className="text-xs text-gray-500">（任意）</span>
+                </label>
+                <select
+                  value={birthMonth ?? ''}
+                  onChange={(e) => setBirthMonth(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">選択してください</option>
+                  <option value="1">1月</option>
+                  <option value="2">2月</option>
+                  <option value="3">3月</option>
+                  <option value="4">4月</option>
+                  <option value="5">5月</option>
+                  <option value="6">6月</option>
+                  <option value="7">7月</option>
+                  <option value="8">8月</option>
+                  <option value="9">9月</option>
+                  <option value="10">10月</option>
+                  <option value="11">11月</option>
+                  <option value="12">12月</option>
+                </select>
+                <p className="mt-1 text-xs text-blue-600">
+                  🎁 誕生月を登録すると、お誕生日クーポンが届きます！
                 </p>
               </div>
             </div>

@@ -6,6 +6,7 @@ import { useLiff } from "@/hooks/useLiff";
 import { QRScanner } from "@/components/shared/QRScanner";
 import { VersionInfo } from "@/components/layout/VersionInfo";
 import { StaffPinModal } from "@/components/shared/StaffPinModal";
+import { BirthMonthPromptModal } from "@/components/shared/BirthMonthPromptModal";
 import { Smile } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { addStamp, fetchStampCount, calculateStampDisplay, calculateNextGoal, getStampProgress } from "@/lib/stamps";
@@ -25,6 +26,8 @@ export default function AdultHome() {
   const [familyStampCount, setFamilyStampCount] = useState<number | null>(null);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [realName, setRealName] = useState<string | null>(null);
+  const [birthMonth, setBirthMonth] = useState<number | null>(null);
+  const [showBirthMonthModal, setShowBirthMonthModal] = useState(false);
   const [familyRole, setFamilyRole] = useState<string | null>(null);
 
   // Supabaseからユーザーデータを取得
@@ -32,7 +35,7 @@ export default function AdultHome() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("stamp_count, updated_at, ticket_number, family_id, real_name, family_role")
+        .select("stamp_count, updated_at, ticket_number, family_id, real_name, family_role, birth_month")
         .eq("id", userId)
         .single();
 
@@ -45,6 +48,7 @@ export default function AdultHome() {
         setStampCount(data.stamp_count ?? 0);
         setLastUpdated(data.updated_at);
         setTicketNumber(data.ticket_number);
+        setBirthMonth(data.birth_month);
         setFamilyId(data.family_id);
         setRealName(data.real_name);
         setFamilyRole(data.family_role);
@@ -134,6 +138,33 @@ export default function AdultHome() {
     if (familyRole === null && profile?.userId && !isLoading && !hasSeenFamilySetup) {
       console.log('[AdultHome] 初回ユーザー検出 → /settings にリダイレクト');
       localStorage.setItem('hasSeenFamilySetup', 'true');
+
+  // 誕生月未登録ユーザーにモーダル表示（1日1回まで）
+  useEffect(() => {
+    if (!profile?.userId || birthMonth !== null) return;
+
+    // 今日既に表示したかチェック
+    const today = new Date().toISOString().split('T')[0];
+    const lastPrompt = localStorage.getItem('birthMonthPrompt_lastShown');
+    
+    if (lastPrompt === today) {
+      return; // 今日既に表示済み
+    }
+
+    // スキップした日もチェック
+    const lastSkip = localStorage.getItem('birthMonthPrompt_lastSkip');
+    if (lastSkip === today) {
+      return; // 今日スキップ済み
+    }
+
+    // 2秒後にモーダル表示
+    const timer = setTimeout(() => {
+      setShowBirthMonthModal(true);
+      localStorage.setItem('birthMonthPrompt_lastShown', today);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [profile?.userId, birthMonth]);
       router.push('/settings');
     }
   }, [familyRole, profile?.userId, isLoading, router]);
@@ -488,6 +519,19 @@ export default function AdultHome() {
         onSubmit={handleStaffSubmit}
         isLoading={isStaffLoading}
         userId={profile?.userId}
+
+      />
+      {/* 誕生月登録促進モーダル */}
+      <BirthMonthPromptModal
+        isOpen={showBirthMonthModal}
+        onClose={() => setShowBirthMonthModal(false)}
+        userId={profile?.userId || ''}
+        onSuccess={async () => {
+          // 登録成功後、ユーザーデータを再取得
+          if (profile?.userId) {
+            await fetchUserData(profile.userId);
+          }
+        }}
       />
     </div>
   );

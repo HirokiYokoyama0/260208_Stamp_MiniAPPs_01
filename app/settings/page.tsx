@@ -26,9 +26,11 @@ export default function SettingsPage() {
   const [proxyChildren, setProxyChildren] = useState<ProxyChild[]>([]);
   const [realName, setRealName] = useState<string | null>(null);
   const [ticketNumber, setTicketNumber] = useState<string | null>(null);
+  const [birthMonth, setBirthMonth] = useState<number | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editRealName, setEditRealName] = useState('');
   const [editTicketNumber, setEditTicketNumber] = useState('');
+  const [editBirthMonth, setEditBirthMonth] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // キッズモードの場合は子供用設定画面にリダイレクト
@@ -52,6 +54,7 @@ export default function SettingsPage() {
           setFamilyId(data.profile.family_id);
           setRealName(data.profile.real_name);
           setTicketNumber(data.profile.ticket_number);
+          setBirthMonth(data.profile.birth_month);
 
           // 親の場合、代理管理メンバーを取得
           if (data.profile.family_role === 'parent' && data.profile.family_id) {
@@ -112,6 +115,7 @@ export default function SettingsPage() {
   const handleEditProfile = () => {
     setEditRealName(realName || '');
     setEditTicketNumber(ticketNumber || '');
+    setEditBirthMonth(birthMonth);
     setIsEditingProfile(true);
   };
 
@@ -136,6 +140,7 @@ export default function SettingsPage() {
         .update({
           real_name: editRealName.trim(),
           ticket_number: editTicketNumber.trim(),
+          birth_month: editBirthMonth,
           updated_at: new Date().toISOString(),
         })
         .eq('id', profile.userId);
@@ -149,6 +154,7 @@ export default function SettingsPage() {
       // ローカル状態を更新
       setRealName(editRealName.trim());
       setTicketNumber(editTicketNumber.trim());
+      setBirthMonth(editBirthMonth);
       setIsEditingProfile(false);
       alert('プロフィールを更新しました');
     } catch (err) {
@@ -222,6 +228,34 @@ export default function SettingsPage() {
                   disabled={isSaving}
                 />
               </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700">
+                  誕生月 <span className="text-xs text-gray-500">（任意）</span>
+                </label>
+                <select
+                  value={editBirthMonth ?? ''}
+                  onChange={(e) => setEditBirthMonth(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  disabled={isSaving}
+                >
+                  <option value="">選択してください</option>
+                  <option value="1">1月</option>
+                  <option value="2">2月</option>
+                  <option value="3">3月</option>
+                  <option value="4">4月</option>
+                  <option value="5">5月</option>
+                  <option value="6">6月</option>
+                  <option value="7">7月</option>
+                  <option value="8">8月</option>
+                  <option value="9">9月</option>
+                  <option value="10">10月</option>
+                  <option value="11">11月</option>
+                  <option value="12">12月</option>
+                </select>
+                <p className="mt-1 text-xs text-blue-600">
+                  🎁 誕生月を登録すると、お誕生日クーポンが届きます！
+                </p>
+              </div>
               <div className="flex gap-3">
                 <button
                   onClick={() => setIsEditingProfile(false)}
@@ -251,6 +285,12 @@ export default function SettingsPage() {
                 <span className="text-sm text-gray-600">診察券番号</span>
                 <span className="font-medium font-mono text-gray-800">
                   {ticketNumber || '未登録'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">誕生月</span>
+                <span className="font-medium text-gray-800">
+                  {birthMonth ? `${birthMonth}月` : '未登録'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
