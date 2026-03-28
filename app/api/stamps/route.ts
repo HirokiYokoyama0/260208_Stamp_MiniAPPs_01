@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { AddStampResponse } from "@/types/stamp";
 import { STAMP_AMOUNTS } from "@/lib/stamps";
+import { logStampScanSuccess, logStampScanFail } from "@/lib/analytics";
+import { checkMilestones, grantMilestoneReward } from "@/lib/milestones";
 
 interface StampRegistrationRequest {
   userId: string; // LINEユーザーID
@@ -43,13 +45,18 @@ export async function POST(
       );
     }
 
-    // QRコードペイロードのパース（タイプ判定用）
+    // QRコードペイロードのパース（タイプとスタンプ数を取得）
     let qrType: 'regular' | 'premium' | 'purchase' = 'regular';
+    let stampAmount = STAMP_AMOUNTS.REGULAR_VISIT; // デフォルト: +10個
     try {
       const qrPayload = JSON.parse(qrCodeId);
       if (qrPayload.type && ['regular', 'premium', 'purchase'].includes(qrPayload.type)) {
         qrType = qrPayload.type;
       }
+      if (qrPayload.stamps && typeof qrPayload.stamps === 'number') {
+        stampAmount = qrPayload.stamps;
+      }
+      console.log(`📱 [Stamps API] QRコードから読み取り: ${stampAmount}個, type: ${qrType}`);
     } catch {
       // JSONパースエラー = 通常のQRコードID、デフォルト値を使用
     }
@@ -81,6 +88,16 @@ export async function POST(
       }
 
       if (existing) {
+        // イベントログ: 重複スキャン失敗
+        await logStampScanFail({
+          error: 'Duplicate stamp',
+          errorType: 'duplicate_scan',
+          userId: userId,
+          httpStatus: 400,
+          requestType: qrType,
+          requestStamps: stampAmount,
+        });
+
         return NextResponse.json(
           {
             success: false,
@@ -114,19 +131,6 @@ export async function POST(
     }
 
     const currentStampCount = profileData?.stamp_count ?? 0;
-
-    // QRコードからスタンプ数を解析（タイプは既に取得済み）
-    let stampAmount = STAMP_AMOUNTS.REGULAR_VISIT; // デフォルト: +10個
-    try {
-      const qrPayload = JSON.parse(qrCodeId);
-      if (qrPayload.stamps && typeof qrPayload.stamps === 'number') {
-        stampAmount = qrPayload.stamps; // QRコードの stamps 値を使用
-        console.log(`📱 [Stamps API] QRコードから読み取り: ${stampAmount}個, type: ${qrType}`);
-      }
-    } catch {
-      // JSONパースエラー = 通常のQRコードID、デフォルト値を使用
-    }
-
     const nextStampNumber = currentStampCount + stampAmount;
 
     // stamp_historyに新規レコードを挿入
@@ -167,6 +171,34 @@ export async function POST(
 
     const finalStampCount = updatedProfile?.stamp_count ?? nextStampNumber;
 
+    // マイルストーン判定と特典自動付与
+    const milestones = checkMilestones(currentStampCount, finalStampCount);
+    const grantedRewards = [];
+
+    for (const { milestone, rewardType } of milestones) {
+      try {
+        const exchange = await grantMilestoneReward(userId, milestone, rewardType);
+        grantedRewards.push({ milestone, rewardType, exchangeId: exchange.id });
+        console.log(`🎁 マイルストーン特典付与: ${milestone}スタンプ, ${rewardType}`);
+      } catch (error) {
+        console.error(`⚠️ マイルストーン特典付与エラー (${milestone}):`, error);
+      }
+    }
+
+    // イベントログ: スキャン成功（アプリ内）
+    await logStampScanSuccess({
+      stampsAdded: stampAmount,
+      type: qrType,
+      userId: userId,
+      scanMethod: 'in_app',
+      currentStampCount: currentStampCount,
+      newStampCount: finalStampCount,
+      stampHistoryId: stampData?.id,
+      milestonesGranted: grantedRewards,
+      requestAmount: stampAmount,
+      requestType: qrType,
+    });
+
     console.log(
       `✅ スタンプ登録成功: User ${userId}, Stamp #${nextStampNumber}, Total: ${finalStampCount}`
     );
@@ -177,6 +209,7 @@ export async function POST(
         message: "スタンプを登録しました",
         stampCount: finalStampCount,
         stampNumber: nextStampNumber,
+        milestones: grantedRewards,
       },
       { status: 201 }
     );
