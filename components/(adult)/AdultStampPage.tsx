@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useLiff } from "@/hooks/useLiff";
-import { QRScanner } from "@/components/shared/QRScanner";
-import { Trophy, QrCode, User, Package, FileText } from "lucide-react";
+import { QrCode, User, Package, FileText } from "lucide-react";
 import {
   fetchStampCount,
   fetchVisitCount,
   fetchStampHistory,
-  addStamp,
   formatStampDate,
   getStampProgress,
   calculateStampDisplay,
@@ -25,7 +23,6 @@ export default function AdultStampPage() {
   const [visitCount, setVisitCount] = useState(0);
   const [stampHistory, setStampHistory] = useState<StampHistoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isScanning, setIsScanning] = useState(false);
 
   // 10倍整数システム対応のスタンプ表示
   const { fullStamps, progress: stampProgress } = calculateStampDisplay(stampCount);
@@ -76,37 +73,6 @@ export default function AdultStampPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading]); // isLoadingがfalseになったら実行（初回のみ）
 
-  // QRスキャン時の処理
-  const handleStampScan = async (qrValue: string) => {
-    if (!profile?.userId) {
-      alert("ログインしてください");
-      return;
-    }
-
-    setIsScanning(true);
-    try {
-      const result = await addStamp(profile.userId, qrValue);
-      if (result.success) {
-        // 成功時
-        console.log("✅ スタンプを付与しました:", result);
-        setStampCount(result.stampCount || stampCount + 1);
-        // 履歴を再取得して画面更新
-        await fetchHistory();
-        const { fullStamps: updatedStamps } = calculateStampDisplay(result.stampCount || stampCount + 1);
-        alert(`スタンプを取得しました！\n現在 ${updatedStamps}個`);
-      } else {
-        // エラー表示
-        console.error("❌ スタンプ付与失敗:", result.error);
-        alert(result.message || "スタンプの登録に失敗しました");
-      }
-    } catch (error) {
-      console.error("❌ スタンプ登録エラー:", error);
-      alert("エラーが発生しました");
-    } finally {
-      setIsScanning(false);
-    }
-  };
-
   // スタンプ進捗を計算（100個単位の動的目標）
   const progress = getStampProgress(fullStamps, nextGoal);
 
@@ -140,16 +106,6 @@ export default function AdultStampPage() {
           次の目標まであと{progress.remaining}個（目標: {nextGoal}個）
         </p>
       </section>
-
-      {/* QRスキャンボタン */}
-      <QRScanner
-        onScan={handleStampScan}
-        onError={(err) => console.error("QRスキャンエラー:", err)}
-        disabled={isScanning}
-        className="w-full"
-      >
-        {isScanning ? "読み取り中..." : "来院スタンプを読み取る"}
-      </QRScanner>
 
       {/* スタンプ獲得履歴リスト */}
       <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
