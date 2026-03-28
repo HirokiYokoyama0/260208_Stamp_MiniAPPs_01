@@ -138,6 +138,9 @@ export default function AdultHome() {
     if (familyRole === null && profile?.userId && !isLoading && !hasSeenFamilySetup) {
       console.log('[AdultHome] 初回ユーザー検出 → /settings にリダイレクト');
       localStorage.setItem('hasSeenFamilySetup', 'true');
+      router.push('/settings');
+    }
+  }, [familyRole, profile?.userId, isLoading, router]);
 
   // 誕生月未登録ユーザーにモーダル表示（1日1回まで）
   useEffect(() => {
@@ -146,7 +149,7 @@ export default function AdultHome() {
     // 今日既に表示したかチェック
     const today = new Date().toISOString().split('T')[0];
     const lastPrompt = localStorage.getItem('birthMonthPrompt_lastShown');
-    
+
     if (lastPrompt === today) {
       return; // 今日既に表示済み
     }
@@ -165,9 +168,6 @@ export default function AdultHome() {
 
     return () => clearTimeout(timer);
   }, [profile?.userId, birthMonth]);
-      router.push('/settings');
-    }
-  }, [familyRole, profile?.userId, isLoading, router]);
 
   // 日付フォーマット関数
   const formatDate = (dateString: string | null): string => {
