@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { logStampDeleteTodayQR } from "@/lib/analytics";
 
 /**
  * POST /api/stamps/scan/delete-today
@@ -45,6 +46,13 @@ export async function POST(
     }
 
     console.log('🗑️ [Delete Today QR] リクエスト:', { userId });
+
+    // ユーザー情報を取得（イベントログ用）
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("display_name, ticket_number")
+      .eq("id", userId)
+      .single();
 
     // 今日の日付範囲を取得（JST = UTC+9 で計算、スキャンAPIと同じロジック）
     const nowJST = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
@@ -119,6 +127,22 @@ export async function POST(
     // そのため、手動でのUPDATEは不要です
 
     console.log(`✅ [Delete Today QR] 削除成功: ${todayScans.length}件削除, -${totalAmount}ポイント`);
+
+    // 🆕 イベントログ送信（スタッフ操作の記録）
+    await logStampDeleteTodayQR({
+      targetUserId: userId,
+      targetUserName: profileData?.display_name,
+      targetTicketNumber: profileData?.ticket_number,
+      deletedCount: todayScans.length,
+      deletedStamps: totalAmount,
+      deletedRecords: todayScans.map(scan => ({
+        id: scan.id,
+        visit_date: scan.visit_date,
+        stamp_number: scan.stamp_number,
+        amount: scan.amount || 0,
+        stamp_method: scan.stamp_method,
+      })),
+    });
 
     return NextResponse.json(
       {

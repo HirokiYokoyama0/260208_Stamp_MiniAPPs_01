@@ -83,10 +83,23 @@ export default function QRScanPage() {
                        /Android/.test(navigator.userAgent) ? 'Android' as const : 'Unknown' as const;
 
     // 🆕 QRスキャン開始ログ
-    await logStampScanStart({
-      userId: profile?.userId,
-      deviceType,
-    });
+    try {
+      console.log('📱 [Scan] QRスキャン開始ログを送信:', {
+        userId: profile?.userId?.substring(0, 8) + '...',
+        deviceType,
+      });
+
+      const scanStartResult = await logStampScanStart({
+        userId: profile?.userId,
+        deviceType,
+      });
+
+      if (!scanStartResult.success) {
+        console.error('⚠️ [Scan] QRスキャン開始ログ送信失敗:', scanStartResult.error);
+      }
+    } catch (err) {
+      console.error('❌ [Scan] QRスキャン開始ログ送信エラー:', err);
+    }
 
     try {
       // LIFF SDK v2のscanCodeV2を使用
@@ -159,12 +172,26 @@ export default function QRScanPage() {
       };
 
       // 🆕 APIリクエスト前にログ送信（QR生値とパース結果を記録）
-      await logStampScanApiRequest({
-        userId: profile?.userId,
-        qrRawValue: qrValue,
-        qrParsed: payload,
-        requestPayload,
-      });
+      try {
+        console.log('📱 [Scan] APIリクエストログを送信:', {
+          userId: profile?.userId?.substring(0, 8) + '...',
+          qrType: payload.type,
+          qrStamps: payload.stamps,
+        });
+
+        const apiRequestResult = await logStampScanApiRequest({
+          userId: profile?.userId,
+          qrRawValue: qrValue,
+          qrParsed: payload,
+          requestPayload,
+        });
+
+        if (!apiRequestResult.success) {
+          console.error('⚠️ [Scan] APIリクエストログ送信失敗:', apiRequestResult.error);
+        }
+      } catch (err) {
+        console.error('❌ [Scan] APIリクエストログ送信エラー:', err);
+      }
 
       const response = await fetch('/api/stamps/scan', {
         method: 'POST',

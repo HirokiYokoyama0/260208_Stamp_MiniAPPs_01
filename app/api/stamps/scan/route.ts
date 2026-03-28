@@ -220,15 +220,32 @@ export async function POST(
     }
 
     // イベントログ記録（詳細情報追加）
-    await logStampScanSuccess({
-      stampsAdded: stamps,
-      type: type,
-      userId: userId,
-      currentStampCount: currentStampCount,
-      newStampCount: finalStampCount,
-      stampHistoryId: stampData?.id,
-      milestonesGranted: grantedRewards,
-    });
+    try {
+      console.log('🔍 [API] スタンプスキャン成功ログを送信:', {
+        stampsAdded: stamps,
+        type: type,
+        userId: userId.substring(0, 8) + '...',
+        currentStampCount,
+        newStampCount: finalStampCount,
+      });
+
+      const logResult = await logStampScanSuccess({
+        stampsAdded: stamps,
+        type: type,
+        userId: userId,
+        currentStampCount: currentStampCount,
+        newStampCount: finalStampCount,
+        stampHistoryId: stampData?.id,
+        milestonesGranted: grantedRewards,
+      });
+
+      if (!logResult.success) {
+        console.error('⚠️ [API] イベントログ記録失敗（スタンプ付与は成功）:', logResult.error);
+      }
+    } catch (logError) {
+      // イベントログ失敗してもスタンプ付与は成功しているので処理続行
+      console.error('❌ [API] イベントログ記録エラー（スタンプ付与は成功）:', logError);
+    }
 
     return NextResponse.json(
       {

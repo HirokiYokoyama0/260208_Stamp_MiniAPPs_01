@@ -91,24 +91,34 @@ export const logEvent = async (params: LogEventParams): Promise<LogEventResponse
     });
 
     if (error) {
-      console.error('❌ Analytics error:', error);
+      // エラーの詳細情報を記録（サーバーサイドではVercelログに記録される）
+      console.error('❌ [Analytics] Event log insertion failed:', {
+        eventName,
+        userId: targetUserId?.substring(0, 8) + '...',
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
       return { success: false, error: error.message };
     }
 
-    // 開発環境ではコンソールにログ出力
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📊 [Analytics]', {
-        event: eventName,
-        source: detectedSource,
-        user: targetUserId?.substring(0, 8) + '...',
-        metadata: enrichedMetadata,
-      });
-    }
+    // 成功時も明示的にログ出力（デバッグ用）
+    console.log('✅ [Analytics] Event log inserted:', {
+      eventName,
+      userId: targetUserId?.substring(0, 8) + '...',
+      hasMetadata: !!enrichedMetadata,
+      metadataKeys: enrichedMetadata ? Object.keys(enrichedMetadata) : [],
+    });
 
     return { success: true };
   } catch (error) {
     // ログ送信失敗してもユーザー体験を妨げない
-    console.error('⚠️ Analytics error:', error);
+    console.error('⚠️ [Analytics] Unexpected error:', {
+      eventName: params.eventName,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return { success: false, error: String(error) };
   }
 };
@@ -226,6 +236,39 @@ export const logStampScanFail = (params: {
       http_status: params.httpStatus,
       request_type: params.requestType,
       request_stamps: params.requestStamps,
+    },
+  });
+};
+
+/**
+ * 本日のQRスキャン削除ログ（スタッフ操作）
+ */
+export const logStampDeleteTodayQR = (params: {
+  userId?: string;  // 操作したユーザー（通常は対象ユーザーと同じ）
+  targetUserId: string;
+  targetUserName?: string;
+  targetTicketNumber?: string;
+  deletedCount: number;
+  deletedStamps: number;
+  deletedRecords?: Array<{
+    id: string;
+    visit_date: string;
+    stamp_number: number;
+    amount: number;
+    stamp_method: string;
+  }>;
+}) => {
+  return logEvent({
+    eventName: 'stamp_delete_today_qr',
+    userId: params.userId || params.targetUserId,
+    metadata: {
+      target_user_id: params.targetUserId,
+      target_user_name: params.targetUserName,
+      target_ticket_number: params.targetTicketNumber,
+      deleted_count: params.deletedCount,
+      deleted_stamps: params.deletedStamps,
+      deleted_records: params.deletedRecords,
+      staff_initiated: true,
     },
   });
 };
