@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { checkMilestones, grantMilestoneReward } from "@/lib/milestones";
+import { logStampScanSuccess, logStampScanFail } from "@/lib/analytics";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -70,6 +71,21 @@ export async function POST(req: Request) {
 
       if (todayQrRecords && todayQrRecords.length > 0) {
         console.log(`⚠️ 1日1回制限: User ${userId} は本日既にQRスタンプを取得済み`);
+
+        // イベントログ記録（失敗: 重複スキャン）
+        try {
+          await logStampScanFail({
+            error: "Already received QR stamp today",
+            userId: userId,
+            errorType: "duplicate_scan",
+            httpStatus: 409,
+            requestType: location === "shop" ? "purchase" : "premium",
+            requestStamps: amount,
+          });
+        } catch (logError) {
+          console.error('❌ [API/Auto] イベントログ記録エラー:', logError);
+        }
+
         return NextResponse.json(
           {
             success: false,
@@ -160,6 +176,34 @@ export async function POST(req: Request) {
         console.error(`❌ マイルストーン特典付与エラー:`, error);
         // エラーでもスタンプ付与自体は成功しているので処理続行
       }
+    }
+
+    // イベントログ記録（詳細情報追加）
+    try {
+      console.log('🔍 [API/Auto] スタンプスキャン成功ログを送信:', {
+        stampsAdded: amount,
+        type: location === "shop" ? "purchase" : "premium",
+        userId: userId.substring(0, 8) + '...',
+        currentStampCount,
+        newStampCount: newStampNumber,
+      });
+
+      const logResult = await logStampScanSuccess({
+        stampsAdded: amount,
+        type: location === "shop" ? "purchase" : "premium",
+        userId: userId,
+        currentStampCount: currentStampCount,
+        newStampCount: newStampNumber,
+        stampHistoryId: historyData?.id,
+        milestonesGranted: grantedRewards,
+      });
+
+      if (!logResult.success) {
+        console.error('⚠️ [API/Auto] イベントログ記録失敗（スタンプ付与は成功）:', logResult.error);
+      }
+    } catch (logError) {
+      // イベントログ失敗してもスタンプ付与は成功しているので処理続行
+      console.error('❌ [API/Auto] イベントログ記録エラー（スタンプ付与は成功）:', logError);
     }
 
     return NextResponse.json({
