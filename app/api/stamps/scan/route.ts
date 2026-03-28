@@ -233,6 +233,7 @@ export async function POST(
         stampsAdded: stamps,
         type: type,
         userId: userId,
+        scanMethod: 'in_app',  // ミニアプリ内スキャンボタン
         currentStampCount: currentStampCount,
         newStampCount: finalStampCount,
         stampHistoryId: stampData?.id,

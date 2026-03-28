@@ -198,6 +198,7 @@ export async function POST(req: Request) {
         stampsAdded: amount,
         type: stampType,
         userId: userId,
+        scanMethod: 'camera',  // カメラ用QR直接起動
         currentStampCount: currentStampCount,
         newStampCount: newStampNumber,
         stampHistoryId: historyData?.id,

@@ -190,23 +190,32 @@ export const logStampScanApiRequest = (params: {
 
 /**
  * スタンプスキャン成功ログ（詳細情報追加）
+ *
+ * @param scanMethod - 'camera': カメラ用QR直接起動, 'in_app': ミニアプリ内スキャンボタン
  */
 export const logStampScanSuccess = (params: {
   stampsAdded: number;
   type: 'regular' | 'premium' | 'purchase';
   userId?: string;
+  scanMethod?: 'camera' | 'in_app';  // スキャン方法を追加
   // 以下、追加パラメータ（不具合調査用）
   currentStampCount?: number;
   newStampCount?: number;
   stampHistoryId?: string;
   milestonesGranted?: Array<{ milestone: number; rewardType: string; exchangeId: string }>;
 }) => {
+  // スキャン方法に応じてイベント名を分ける
+  const eventName = params.scanMethod === 'in_app'
+    ? 'stamp_scan_success_in_app'  // ミニアプリ内スキャン
+    : 'stamp_scan_success';         // カメラQR直接起動
+
   return logEvent({
-    eventName: 'stamp_scan_success',
+    eventName,
     userId: params.userId,
     metadata: {
       stamps_added: params.stampsAdded,
       type: params.type,
+      scan_method: params.scanMethod || 'camera',  // デフォルトはカメラ
       current_stamp_count: params.currentStampCount,
       new_stamp_count: params.newStampCount,
       stamp_history_id: params.stampHistoryId,
