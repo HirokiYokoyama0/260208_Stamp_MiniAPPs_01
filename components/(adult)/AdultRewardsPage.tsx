@@ -135,8 +135,14 @@ export default function AdultRewardsPage() {
           )
           .sort((a, b) => new Date(b.exchanged_at).getTime() - new Date(a.exchanged_at).getTime())[0] || null;
 
-        // 有効期限チェック
-        const expirationCheck = latestExchange?.valid_until
+        // ステータスを先に判定
+        const isPending = latestExchange?.status === 'pending';
+        const isCompleted = latestExchange?.status === 'completed';
+        const isCancelled = latestExchange?.status === 'cancelled';
+        const isExpiredStatus = latestExchange?.status === 'expired';
+
+        // 有効期限チェック（pending の場合のみ実施）
+        const expirationCheck = isPending && latestExchange?.valid_until
           ? (() => {
               const now = new Date();
               const validUntil = new Date(latestExchange.valid_until);
@@ -153,10 +159,14 @@ export default function AdultRewardsPage() {
         const rewardWithStatus: MilestoneRewardWithStatus = {
           ...reward,
           canExchange: currentFullStamps >= milestone,
-          isPending: latestExchange?.status === 'pending',
-          isCompleted: latestExchange?.status === 'completed',
-          isCancelled: latestExchange?.status === 'cancelled',
-          isExpired: latestExchange?.status === 'expired' || expirationCheck.isExpired,
+          isPending,
+          isCompleted,
+          isCancelled,
+          // 期限切れ判定：
+          // 1. status が 'expired' の場合
+          // 2. status が 'pending' で valid_until を過ぎている場合
+          // ※ completed や cancelled の場合は期限切れと表示しない
+          isExpired: isExpiredStatus || (isPending && expirationCheck.isExpired),
           latestExchange,
           nextMilestone: milestone,
           validUntil: latestExchange?.valid_until || null,
