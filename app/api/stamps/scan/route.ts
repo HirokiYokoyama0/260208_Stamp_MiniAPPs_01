@@ -139,6 +139,10 @@ export async function POST(
         await logStampScanFail({
           error: "Already received QR stamp today",
           userId: userId,
+          errorType: "duplicate_scan",
+          httpStatus: 409,
+          requestType: type,
+          requestStamps: stamps,
         });
         return NextResponse.json(
           {
@@ -215,11 +219,15 @@ export async function POST(
       }
     }
 
-    // イベントログ記録
+    // イベントログ記録（詳細情報追加）
     await logStampScanSuccess({
       stampsAdded: stamps,
       type: type,
       userId: userId,
+      currentStampCount: currentStampCount,
+      newStampCount: finalStampCount,
+      stampHistoryId: stampData?.id,
+      milestonesGranted: grantedRewards,
     });
 
     return NextResponse.json(

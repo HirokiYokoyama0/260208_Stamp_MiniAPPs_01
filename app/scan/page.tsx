@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useLiff } from '@/hooks/useLiff';
 import { QrCode, Camera, CheckCircle2, XCircle, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { logStampScanStart, logStampScanApiRequest } from '@/lib/analytics';
 
 /**
  * QRコードスキャンページ
@@ -77,6 +78,16 @@ export default function QRScanPage() {
     setError('');
     setScanResult(null);
 
+    // デバイス判定
+    const deviceType = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'iPhone' as const :
+                       /Android/.test(navigator.userAgent) ? 'Android' as const : 'Unknown' as const;
+
+    // 🆕 QRスキャン開始ログ
+    await logStampScanStart({
+      userId: profile?.userId,
+      deviceType,
+    });
+
     try {
       // LIFF SDK v2のscanCodeV2を使用
       if (typeof window !== 'undefined' && window.liff && window.liff.scanCodeV2) {
@@ -140,17 +151,27 @@ export default function QRScanPage() {
         ? `${payload.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         : `${payload.type}_${new Date().toISOString().split('T')[0]}`;
 
+      const requestPayload = {
+        userId: profile!.userId,
+        type: payload.type,
+        stamps: payload.stamps,  // stampsに統一
+        qrCodeId,
+      };
+
+      // 🆕 APIリクエスト前にログ送信（QR生値とパース結果を記録）
+      await logStampScanApiRequest({
+        userId: profile?.userId,
+        qrRawValue: qrValue,
+        qrParsed: payload,
+        requestPayload,
+      });
+
       const response = await fetch('/api/stamps/scan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userId: profile!.userId,
-          type: payload.type,
-          stamps: payload.stamps,  // stampsに統一
-          qrCodeId,
-        }),
+        body: JSON.stringify(requestPayload),
       });
 
       const data = await response.json();

@@ -140,24 +140,93 @@ export const logPageView = (params: { pagePath: string; userId?: string; metadat
 };
 
 /**
- * スタンプスキャン成功ログ
+ * QRスキャン開始ログ（デバイス情報付き）
  */
-export const logStampScanSuccess = (params: { stampsAdded: number; type: 'regular' | 'premium' | 'purchase'; userId?: string }) => {
+export const logStampScanStart = (params: {
+  userId?: string;
+  deviceType?: 'iPhone' | 'Android' | 'Unknown';
+  metadata?: Record<string, any>;
+}) => {
   return logEvent({
-    eventName: 'stamp_scan_success',
+    eventName: 'stamp_scan_start',
     userId: params.userId,
-    metadata: { stamps_added: params.stampsAdded, type: params.type },
+    metadata: {
+      ...params.metadata,
+      device_type: params.deviceType,
+      liff_version: typeof window !== 'undefined' && (window as any).liff ? (window as any).liff.getVersion() : null,
+    },
   });
 };
 
 /**
- * スタンプスキャン失敗ログ
+ * QRスキャンAPIリクエストログ（QR生値とパース後の値を記録）
  */
-export const logStampScanFail = (params: { error: string; userId?: string }) => {
+export const logStampScanApiRequest = (params: {
+  userId?: string;
+  qrRawValue: string;
+  qrParsed: { type: string; stamps: number };
+  requestPayload: Record<string, any>;
+}) => {
+  return logEvent({
+    eventName: 'stamp_scan_api_request',
+    userId: params.userId,
+    metadata: {
+      qr_raw_value: params.qrRawValue,
+      qr_parsed: params.qrParsed,
+      request_payload: params.requestPayload,
+    },
+  });
+};
+
+/**
+ * スタンプスキャン成功ログ（詳細情報追加）
+ */
+export const logStampScanSuccess = (params: {
+  stampsAdded: number;
+  type: 'regular' | 'premium' | 'purchase';
+  userId?: string;
+  // 以下、追加パラメータ（不具合調査用）
+  currentStampCount?: number;
+  newStampCount?: number;
+  stampHistoryId?: string;
+  milestonesGranted?: Array<{ milestone: number; rewardType: string; exchangeId: string }>;
+}) => {
+  return logEvent({
+    eventName: 'stamp_scan_success',
+    userId: params.userId,
+    metadata: {
+      stamps_added: params.stampsAdded,
+      type: params.type,
+      current_stamp_count: params.currentStampCount,
+      new_stamp_count: params.newStampCount,
+      stamp_history_id: params.stampHistoryId,
+      milestones_granted: params.milestonesGranted,
+    },
+  });
+};
+
+/**
+ * スタンプスキャン失敗ログ（詳細情報追加）
+ */
+export const logStampScanFail = (params: {
+  error: string;
+  userId?: string;
+  // 以下、追加パラメータ（不具合調査用）
+  errorType?: string;
+  httpStatus?: number;
+  requestType?: string;
+  requestStamps?: number;
+}) => {
   return logEvent({
     eventName: 'stamp_scan_fail',
     userId: params.userId,
-    metadata: { error: params.error },
+    metadata: {
+      error: params.error,
+      error_type: params.errorType,
+      http_status: params.httpStatus,
+      request_type: params.requestType,
+      request_stamps: params.requestStamps,
+    },
   });
 };
 
