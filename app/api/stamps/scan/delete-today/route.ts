@@ -46,13 +46,13 @@ export async function POST(
 
     console.log('🗑️ [Delete Today QR] リクエスト:', { userId });
 
-    // 今日の日付範囲を取得（UTCタイムゾーンで指定）
-    const now = new Date();
-    const today = now.toISOString().split("T")[0];
-    const startOfDay = `${today}T00:00:00.000Z`;  // Zを追加してUTCを明示
-    const endOfDay = `${today}T23:59:59.999Z`;    // Zを追加してUTCを明示
+    // 今日の日付範囲を取得（JST = UTC+9 で計算、スキャンAPIと同じロジック）
+    const nowJST = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
+    const todayJST = nowJST.toISOString().split("T")[0];
+    const startOfDay = `${todayJST}T00:00:00+09:00`; // JSTの0時をISO形式で
+    const endOfDay = `${todayJST}T23:59:59.999+09:00`; // JSTの23:59:59をISO形式で
 
-    console.log(`🕐 [Delete Today QR] 日付範囲: ${startOfDay} ~ ${endOfDay}`);
+    console.log(`🕐 [Delete Today QR] 日付範囲（JST基準）: ${startOfDay} ~ ${endOfDay}`);
 
     // 本日のQRスキャンスタンプを検索（カメラ用QR + アプリ内スキャン）
     const { data: todayScans, error: fetchError } = await supabase
@@ -61,7 +61,7 @@ export async function POST(
       .eq("user_id", userId)
       .eq("stamp_method", "qr") // 全QR方式で統一（"qr_scan" → "qr"）
       .gte("visit_date", startOfDay)
-      .lte("visit_date", endOfDay);
+      .lt("visit_date", endOfDay); // スキャンAPIと同じく .lt() を使用
 
     if (fetchError) {
       console.error('❌ [Delete Today QR] 検索エラー:', fetchError);
