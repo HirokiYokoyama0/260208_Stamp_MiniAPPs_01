@@ -240,3 +240,86 @@ export function getMilestoneDescription(milestoneType: string): string {
       return '';
   }
 }
+
+/**
+ * スタンプ減少時にマイルストーン特典を無効化
+ *
+ * スタッフがスタンプ数を手動で減らした場合、減少分に該当する
+ * マイルストーン特典を自動的に無効化する（ソフトデリート）
+ *
+ * @param userId ユーザーID
+ * @param oldStampCount 変更前のスタンプ数
+ * @param newStampCount 変更後のスタンプ数
+ * @returns 無効化された特典の数
+ *
+ * @example
+ * // 200個 → 0個 に減らした場合
+ * await invalidateMilestoneRewards('U123...', 200, 0);
+ * // → 10, 20, 30...200 の特典が status='cancelled' になる
+ *
+ * @example
+ * // 200個 → 95個 に減らした場合
+ * await invalidateMilestoneRewards('U123...', 200, 95);
+ * // → 100, 110, 120...200 の特典が status='cancelled' になる
+ * // → 10, 20...90 の特典はそのまま
+ */
+export async function invalidateMilestoneRewards(
+  userId: string,
+  oldStampCount: number,
+  newStampCount: number
+): Promise<number> {
+  // 増加時は何もしない
+  if (newStampCount >= oldStampCount) {
+    return 0;
+  }
+
+  // 削除すべきマイルストーンを計算
+  const old10 = Math.floor(oldStampCount / 10);
+  const new10 = Math.floor(newStampCount / 10);
+  const milestoneArray: number[] = [];
+
+  for (let i = new10 + 1; i <= old10; i++) {
+    milestoneArray.push(i * 10);
+  }
+
+  if (milestoneArray.length === 0) {
+    return 0;
+  }
+
+  console.log(`🔄 マイルストーン特典無効化処理開始:`, {
+    userId: userId.substring(0, 8) + '...',
+    oldStampCount,
+    newStampCount,
+    milestonesToInvalidate: milestoneArray
+  });
+
+  // reward_exchanges をソフトデリート（status = 'cancelled'）
+  // 注: 既に使用済み('used')の特典は無効化しない
+  const { data, error } = await supabase
+    .from('reward_exchanges')
+    .update({
+      status: 'cancelled',
+      notes: `スタッフ操作により無効化 (${oldStampCount} → ${newStampCount})`,
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', userId)
+    .eq('is_milestone_based', true)
+    .in('milestone_reached', milestoneArray)
+    .in('status', ['pending', 'approved']) // 使用済み('used')は除外
+    .select('id, milestone_reached, status');
+
+  if (error) {
+    console.error('❌ マイルストーン特典無効化エラー:', error);
+    throw new Error(`Failed to invalidate rewards: ${error.message}`);
+  }
+
+  const invalidatedCount = data?.length || 0;
+
+  console.log(`✅ マイルストーン特典を無効化しました:`, {
+    userId: userId.substring(0, 8) + '...',
+    invalidatedCount,
+    milestones: milestoneArray.join(', ')
+  });
+
+  return invalidatedCount;
+}

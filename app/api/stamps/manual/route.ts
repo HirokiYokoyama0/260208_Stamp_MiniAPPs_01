@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@supabase/supabase-js";
 import { AddStampResponse } from "@/types/stamp";
+import { invalidateMilestoneRewards } from "@/lib/milestones";
 
 interface ManualStampRequest {
   userId: string; // LINEユーザーID
@@ -109,6 +110,28 @@ export async function POST(
         ? `スタッフ操作: +${changeAmount}個 (${currentStampCount} → ${newStampCount})`
         : `スタッフ操作: ${changeAmount}個 (${currentStampCount} → ${newStampCount})`;
 
+    // スタッフ操作を「起点」として扱う: 古い履歴を削除
+    // 理由: トリガーはMAX(stamp_number)を計算するため、古いレコードが残ると
+    //       次回のQRスキャン時に誤った値が計算される
+    const { error: deleteError } = await supabase
+      .from("stamp_history")
+      .delete()
+      .eq("user_id", userId);
+
+    if (deleteError) {
+      console.error("❌ 古い履歴削除エラー:", deleteError);
+      return NextResponse.json(
+        {
+          success: false,
+          message: "古い履歴の削除に失敗しました",
+          error: deleteError.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    console.log(`🗑️ スタッフ操作を起点として設定: User ${userId} の古い履歴を削除`);
+
     const { error: insertError } = await supabase.from("stamp_history").insert({
       user_id: userId,
       visit_date: now.toISOString(),
@@ -153,6 +176,31 @@ export async function POST(
     }
 
     console.log(`✅ profiles.stamp_count を ${currentStampCount} → ${newStampCount} に更新しました`);
+
+    // マイルストーン特典の無効化処理（スタンプ減少時のみ）
+    if (changeAmount < 0) {
+      try {
+        const invalidatedCount = await invalidateMilestoneRewards(
+          userId,
+          currentStampCount,
+          newStampCount
+        );
+
+        if (invalidatedCount > 0) {
+          console.log(
+            `✅ マイルストーン特典を無効化: User ${userId}, ${invalidatedCount}件の特典を cancelled に変更`
+          );
+        } else {
+          console.log(
+            `ℹ️ 無効化する特典なし: User ${userId}, スタンプ減少 (${currentStampCount} → ${newStampCount})`
+          );
+        }
+      } catch (error) {
+        console.error(`❌ マイルストーン特典無効化エラー:`, error);
+        // エラーでもスタンプ数変更は完了しているので、警告のみ
+        // 管理ダッシュボードで手動確認が必要
+      }
+    }
 
     console.log(
       `✅ スタッフによるスタンプ数変更成功: User ${userId}, ${currentStampCount} → ${newStampCount}`
