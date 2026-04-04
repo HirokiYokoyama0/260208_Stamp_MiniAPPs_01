@@ -57,18 +57,23 @@ function getRewardTypeForMilestone(milestone: number): RewardType {
 }
 
 /**
- * スタンプ数変更時にマイルストーンを判定
+ * スタンプ数変更時にマイルストーンを判定（重複チェック付き）
  *
+ * @param userId ユーザーID（既存特典の重複チェック用）
  * @param oldStampCount 古いスタンプ数
  * @param newStampCount 新しいスタンプ数
- * @returns 到達したマイルストーンと付与する特典のリスト（優先度ルール適用済み）
+ * @returns 到達したマイルストーンと付与する特典のリスト（優先度ルール適用済み、既存特典は除外）
+ *
+ * @example
+ * // 0個 → 15個の場合
+ * await checkMilestones('U123...', 0, 15);
+ * // → 10スタンプのマイルストーンを返す（既に付与済みなら除外）
  */
-export function checkMilestones(
+export async function checkMilestones(
+  userId: string,
   oldStampCount: number,
   newStampCount: number
-): MilestoneResult[] {
-  const results: MilestoneResult[] = [];
-
+): Promise<MilestoneResult[]> {
   // 通過した全マイルストーンを取得
   const allMilestones: number[] = [];
 
@@ -82,10 +87,44 @@ export function checkMilestones(
   // 重複を除去してソート
   const uniqueMilestones = [...new Set(allMilestones)].sort((a, b) => a - b);
 
-  // 各マイルストーンに対して優先度の高い特典を選択
+  // マイルストーンがない場合は空配列を返す
+  if (uniqueMilestones.length === 0) {
+    return [];
+  }
+
+  // 既に付与済みのマイルストーンを除外（重複防止）
+  const { data: existingRewards, error: fetchError } = await supabase
+    .from('reward_exchanges')
+    .select('milestone_reached')
+    .eq('user_id', userId)
+    .eq('is_milestone_based', true)
+    .in('milestone_reached', uniqueMilestones);
+
+  if (fetchError) {
+    console.error('❌ 既存マイルストーン特典の取得エラー:', fetchError);
+    // エラー時は安全側に倒して全マイルストーンを返す（重複付与の可能性あり）
+  }
+
+  const existingMilestones = new Set(
+    existingRewards?.map((r) => r.milestone_reached) || []
+  );
+
+  console.log(`🔍 マイルストーン判定:`, {
+    userId: userId.substring(0, 8) + '...',
+    oldStampCount,
+    newStampCount,
+    allMilestones: uniqueMilestones,
+    existingMilestones: Array.from(existingMilestones),
+    newMilestones: uniqueMilestones.filter((m) => !existingMilestones.has(m)),
+  });
+
+  // 既存のマイルストーンを除外して新しいマイルストーンのみ返す
+  const results: MilestoneResult[] = [];
   for (const milestone of uniqueMilestones) {
-    const rewardType = getRewardTypeForMilestone(milestone);
-    results.push({ milestone, rewardType });
+    if (!existingMilestones.has(milestone)) {
+      const rewardType = getRewardTypeForMilestone(milestone);
+      results.push({ milestone, rewardType });
+    }
   }
 
   return results;
@@ -305,7 +344,7 @@ export async function invalidateMilestoneRewards(
     .eq('user_id', userId)
     .eq('is_milestone_based', true)
     .in('milestone_reached', milestoneArray)
-    .in('status', ['pending', 'approved']) // 使用済み('used')は除外
+    .in('status', ['pending', 'approved', 'completed']) // usedのみ除外
     .select('id, milestone_reached, status');
 
   if (error) {

@@ -225,8 +225,8 @@ export async function POST(
       `✅ QRスキャンスタンプ登録成功: User ${userId} (${profileData.display_name}), Type: ${type}, Stamps: +${stamps}個, Total: ${finalStampCount}個`
     );
 
-    // マイルストーン判定と特典自動付与
-    const milestones = checkMilestones(currentStampCount, finalStampCount);
+    // マイルストーン判定と特典自動付与（重複チェック付き）
+    const milestones = await checkMilestones(userId, currentStampCount, finalStampCount);
     const grantedRewards = [];
 
     for (const { milestone, rewardType } of milestones) {

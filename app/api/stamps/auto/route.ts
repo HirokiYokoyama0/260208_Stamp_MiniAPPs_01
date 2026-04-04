@@ -161,8 +161,8 @@ export async function POST(req: Request) {
 
     console.log(`✅ QRスタンプ自動付与成功: ${userId} (+${amount}個 → 合計${newStampNumber}個)`);
 
-    // マイルストーン判定と特典自動付与
-    const milestones = checkMilestones(currentStampCount, newStampNumber);
+    // マイルストーン判定と特典自動付与（重複チェック付き）
+    const milestones = await checkMilestones(userId, currentStampCount, newStampNumber);
     const grantedRewards = [];
 
     for (const { milestone, rewardType } of milestones) {

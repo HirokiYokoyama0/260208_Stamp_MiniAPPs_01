@@ -171,8 +171,8 @@ export async function POST(
 
     const finalStampCount = updatedProfile?.stamp_count ?? nextStampNumber;
 
-    // マイルストーン判定と特典自動付与
-    const milestones = checkMilestones(currentStampCount, finalStampCount);
+    // マイルストーン判定と特典自動付与（重複チェック付き）
+    const milestones = await checkMilestones(userId, currentStampCount, finalStampCount);
     const grantedRewards = [];
 
     for (const { milestone, rewardType } of milestones) {
