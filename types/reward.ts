@@ -42,7 +42,7 @@ export interface RewardExchange {
   reward_id: string;
   stamp_count_used: number;
   exchanged_at: string;
-  status: "pending" | "completed" | "cancelled" | "expired";
+  status: "available" | "pending" | "completed" | "cancelled" | "expired";
   notes: string | null;
   created_at: string;
   updated_at: string;

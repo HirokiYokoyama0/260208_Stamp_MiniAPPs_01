@@ -15,7 +15,8 @@ import { getMilestoneDescription } from "@/lib/milestones";
 // マイルストーン型特典を表示用に拡張
 interface MilestoneRewardWithStatus extends MilestoneReward {
   canExchange: boolean; // 到達済みかどうか
-  isPending: boolean; // 申請中
+  isAvailable: boolean; // 交換可能（マイルストーン到達済み）
+  isPending: boolean; // 申請中（受付で確認中）
   isCompleted: boolean; // 引渡済み
   isCancelled: boolean; // キャンセル済み
   isExpired: boolean; // 期限切れ
@@ -136,6 +137,7 @@ export default function AdultRewardsPage() {
           .sort((a, b) => new Date(b.exchanged_at).getTime() - new Date(a.exchanged_at).getTime())[0] || null;
 
         // ステータスを先に判定
+        const isAvailable = latestExchange?.status === 'available';
         const isPending = latestExchange?.status === 'pending';
         const isCompleted = latestExchange?.status === 'completed';
         const isCancelled = latestExchange?.status === 'cancelled';
@@ -159,6 +161,7 @@ export default function AdultRewardsPage() {
         const rewardWithStatus: MilestoneRewardWithStatus = {
           ...reward,
           canExchange: currentFullStamps >= milestone,
+          isAvailable,
           isPending,
           isCompleted,
           isCancelled,
@@ -517,6 +520,8 @@ export default function AdultRewardsPage() {
                     ? "border-green-300 bg-green-50"
                     : reward.isCancelled
                     ? "border-red-300 bg-red-50"
+                    : reward.isAvailable
+                    ? "border-primary/30 bg-primary/5"
                     : reward.isPending
                     ? "border-yellow-300 bg-yellow-50"
                     : reward.canExchange
@@ -534,6 +539,8 @@ export default function AdultRewardsPage() {
                         ? "bg-green-200"
                         : reward.isCancelled
                         ? "bg-red-200"
+                        : reward.isAvailable
+                        ? "bg-primary/20"
                         : reward.isPending
                         ? "bg-yellow-200"
                         : reward.canExchange
@@ -551,6 +558,12 @@ export default function AdultRewardsPage() {
                       />
                     ) : reward.isCancelled ? (
                       <X size={28} className="text-red-600" strokeWidth={2} />
+                    ) : reward.isAvailable ? (
+                      <CheckCircle2
+                        size={28}
+                        className="text-primary"
+                        strokeWidth={1.5}
+                      />
                     ) : reward.isPending ? (
                       <Clock
                         size={28}
@@ -646,7 +659,12 @@ export default function AdultRewardsPage() {
                           あと{reward.nextMilestone - fullStamps}個
                         </span>
                       )}
-                      {reward.canExchange && !reward.isPending && !reward.isCompleted && !reward.isCancelled && !reward.isExpired && (
+                      {reward.isAvailable && (
+                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                          交換可能！
+                        </span>
+                      )}
+                      {!reward.isAvailable && reward.canExchange && !reward.isPending && !reward.isCompleted && !reward.isCancelled && !reward.isExpired && (
                         <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
                           交換可能！
                         </span>
@@ -686,6 +704,14 @@ export default function AdultRewardsPage() {
                       className="w-full cursor-not-allowed rounded-lg bg-red-100 px-4 py-3 text-sm font-medium text-red-700"
                     >
                       キャンセル済み
+                    </button>
+                  ) : reward.isAvailable ? (
+                    <button
+                      onClick={() => handleExchange(reward.id, reward.name, reward.nextMilestone)}
+                      disabled={isExchanging}
+                      className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isExchanging ? "交換中..." : "この特典と交換する"}
                     </button>
                   ) : reward.isPending ? (
                     <button

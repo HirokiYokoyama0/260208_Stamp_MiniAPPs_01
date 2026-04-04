@@ -203,7 +203,7 @@ export async function grantMilestoneReward(
       user_id: userId,
       reward_id: reward.id,
       milestone_reached: milestone,
-      status: 'approved', // ← 修正: 自動付与は「交換申請」状態（approved）
+      status: 'available', // マイルストーン到達時の初期状態（「この特典と交換する」ボタンが表示される）
       valid_until: validUntil,
       is_first_time: isFirstTime,
       is_milestone_based: true,
@@ -341,7 +341,7 @@ export async function invalidateMilestoneRewards(
     .eq('user_id', userId)
     .eq('is_milestone_based', true)
     .in('milestone_reached', milestoneArray)
-    .in('status', ['pending', 'approved', 'completed']);
+    .in('status', ['available', 'pending', 'completed']);
 
   console.log(`📋 [invalidateMilestoneRewards] UPDATE対象:`, {
     count: targetRewards?.length || 0,
@@ -360,7 +360,7 @@ export async function invalidateMilestoneRewards(
     .eq('user_id', userId)
     .eq('is_milestone_based', true)
     .in('milestone_reached', milestoneArray)
-    .in('status', ['pending', 'approved', 'completed']) // usedのみ除外
+    .in('status', ['available', 'pending', 'completed']) // cancelled, expiredは除外
     .select('id, milestone_reached, status');
 
   if (error) {
