@@ -179,7 +179,11 @@ export async function POST(
     console.log(`✅ profiles.stamp_count を ${currentStampCount} → ${newStampCount} に更新しました`);
 
     // マイルストーン特典の無効化処理（スタンプ減少時のみ）
+    console.log(`🔍 [manual/route] changeAmount確認: ${changeAmount}, 条件: ${changeAmount < 0}`);
+
     if (changeAmount < 0) {
+      console.log(`🔄 [manual/route] スタンプ減少を検出: ${currentStampCount} → ${newStampCount}`);
+
       try {
         const invalidatedCount = await invalidateMilestoneRewards(
           userId,
@@ -189,18 +193,20 @@ export async function POST(
 
         if (invalidatedCount > 0) {
           console.log(
-            `✅ マイルストーン特典を無効化: User ${userId}, ${invalidatedCount}件の特典を cancelled に変更`
+            `✅ [manual/route] マイルストーン特典を無効化: User ${userId}, ${invalidatedCount}件の特典を cancelled に変更`
           );
         } else {
           console.log(
-            `ℹ️ 無効化する特典なし: User ${userId}, スタンプ減少 (${currentStampCount} → ${newStampCount})`
+            `ℹ️ [manual/route] 無効化する特典なし: User ${userId}, スタンプ減少 (${currentStampCount} → ${newStampCount})`
           );
         }
       } catch (error) {
-        console.error(`❌ マイルストーン特典無効化エラー:`, error);
+        console.error(`❌ [manual/route] マイルストーン特典無効化エラー:`, error);
         // エラーでもスタンプ数変更は完了しているので、警告のみ
         // 管理ダッシュボードで手動確認が必要
       }
+    } else {
+      console.log(`⏭️ [manual/route] スタンプ減少なし (changeAmount: ${changeAmount})、マイルストーン無効化スキップ`);
     }
 
     console.log(

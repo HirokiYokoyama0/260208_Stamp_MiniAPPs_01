@@ -309,6 +309,7 @@ export async function invalidateMilestoneRewards(
 ): Promise<number> {
   // 増加時は何もしない
   if (newStampCount >= oldStampCount) {
+    console.log(`⏭️ [invalidateMilestoneRewards] スキップ: スタンプ増加 (${oldStampCount} → ${newStampCount})`);
     return 0;
   }
 
@@ -322,14 +323,29 @@ export async function invalidateMilestoneRewards(
   }
 
   if (milestoneArray.length === 0) {
+    console.log(`⏭️ [invalidateMilestoneRewards] 無効化するマイルストーンなし (${oldStampCount} → ${newStampCount})`);
     return 0;
   }
 
-  console.log(`🔄 マイルストーン特典無効化処理開始:`, {
+  console.log(`🔄 [invalidateMilestoneRewards] 開始:`, {
     userId: userId.substring(0, 8) + '...',
     oldStampCount,
     newStampCount,
     milestonesToInvalidate: milestoneArray
+  });
+
+  // UPDATE前に対象レコードを確認
+  const { data: targetRewards } = await supabase
+    .from('reward_exchanges')
+    .select('id, milestone_reached, status')
+    .eq('user_id', userId)
+    .eq('is_milestone_based', true)
+    .in('milestone_reached', milestoneArray)
+    .in('status', ['pending', 'approved', 'completed']);
+
+  console.log(`📋 [invalidateMilestoneRewards] UPDATE対象:`, {
+    count: targetRewards?.length || 0,
+    rewards: targetRewards?.map(r => `milestone:${r.milestone_reached}, status:${r.status}`) || []
   });
 
   // reward_exchanges をソフトデリート（status = 'cancelled'）
@@ -348,16 +364,16 @@ export async function invalidateMilestoneRewards(
     .select('id, milestone_reached, status');
 
   if (error) {
-    console.error('❌ マイルストーン特典無効化エラー:', error);
+    console.error('❌ [invalidateMilestoneRewards] UPDATE失敗:', error);
     throw new Error(`Failed to invalidate rewards: ${error.message}`);
   }
 
   const invalidatedCount = data?.length || 0;
 
-  console.log(`✅ マイルストーン特典を無効化しました:`, {
+  console.log(`✅ [invalidateMilestoneRewards] 完了:`, {
     userId: userId.substring(0, 8) + '...',
     invalidatedCount,
-    milestones: milestoneArray.join(', ')
+    updatedRecords: data?.map(r => `id:${r.id.substring(0, 8)}, milestone:${r.milestone_reached}`) || []
   });
 
   return invalidatedCount;
