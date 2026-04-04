@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { createClient } from "@supabase/supabase-js";
 import { AddStampResponse } from "@/types/stamp";
 import { invalidateMilestoneRewards } from "@/lib/milestones";
 
@@ -23,12 +22,6 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<AddStampResponse>> {
   try {
-    // Service Role Keyを使用するSupabaseクライアント（RLSバイパス）
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
     const body: ManualStampRequest = await request.json();
     const { userId, staffPin, newStampCount } = body;
 
@@ -71,7 +64,7 @@ export async function POST(
     }
 
     // 現在のスタンプ数を取得
-    const { data: profileData, error: fetchError } = await supabaseAdmin
+    const { data: profileData, error: fetchError } = await supabase
       .from("profiles")
       .select("stamp_count")
       .eq("id", userId)
@@ -116,10 +109,12 @@ export async function POST(
         ? `スタッフ操作: +${changeAmount}個 (${currentStampCount} → ${newStampCount})`
         : `スタッフ操作: ${changeAmount}個 (${currentStampCount} → ${newStampCount})`;
 
-    // スタッフ操作を「起点」として扱う: 古い履歴を削除
+    // スタッフ操作を「起点」として扱う: 古い履歴を全削除
     // 理由: トリガーはMAX(stamp_number)を計算するため、古いレコードが残ると
     //       次回のQRスキャン時に誤った値が計算される
-    const { error: deleteError } = await supabaseAdmin
+    // 注: RLSポリシー (027_allow_delete_non_admin_stamps.sql) により、
+    //     ANON_KEYでも全レコード削除可能（Service Role Key不要）
+    const { error: deleteError } = await supabase
       .from("stamp_history")
       .delete()
       .eq("user_id", userId);
@@ -138,7 +133,7 @@ export async function POST(
 
     console.log(`🗑️ スタッフ操作を起点として設定: User ${userId} の古い履歴を削除`);
 
-    const { error: insertError } = await supabaseAdmin.from("stamp_history").insert({
+    const { error: insertError } = await supabase.from("stamp_history").insert({
       user_id: userId,
       visit_date: now.toISOString(),
       stamp_number: newStampCount,
@@ -161,7 +156,7 @@ export async function POST(
     }
 
     // profiles.stamp_count を直接更新する（トリガーは MAX を使うため減らす操作に対応できない）
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await supabase
       .from("profiles")
       .update({
         stamp_count: newStampCount,

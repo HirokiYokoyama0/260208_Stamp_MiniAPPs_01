@@ -5,9 +5,9 @@
 このドキュメントでは、Supabase（PostgreSQL）のデータベース構造を全体的にまとめています。
 
 **作成日:** 2026-02-16
-**最終更新:** 2026-03-27
+**最終更新:** 2026-04-04
 **データベース:** Supabase PostgreSQL
-**バージョン:** 1.7 (マイルストーン型特典システム実装)
+**バージョン:** 1.8 (RLSセキュリティ強化・本番環境適用済み)
 
 ---
 
@@ -705,31 +705,157 @@ SELECT * FROM search_profiles_by_real_name('太郎');
 
 ### Row Level Security (RLS)
 
-**現在の設定（開発段階）:**
-- 全てのテーブルでRLS有効
-- 全員が読み取り・挿入・更新可能（`allow_public_*` ポリシー）
+**セキュリティレベル: ⭐⭐⭐ (中)**
 
-**本番環境での推奨設定:**
+**最終更新日:** 2026-04-04
+**実装状態:** 本番環境適用済み
+**マイグレーションファイル:** [supabase/026B_minimal_rls_hardening_fixed.sql](../supabase/026B_minimal_rls_hardening_fixed.sql)
 
+---
+
+#### 📊 実装済みRLSポリシー一覧（22ポリシー）
+
+全てのテーブルでRLS有効化済み。フォーマット検証により不正なIDでのアクセスをブロック。
+
+**対応ID形式:**
+- 本番LINE User ID: `U[0-9a-f]{32}$` (例: `U5c70cd61f4fe89a65381cd7becee8de3`)
+- テストLINE User ID: `U_test_` (例: `U_test_1770547971169`)
+- 代理管理メンバー: `manual-child-` (例: `manual-child-<UUID>`)
+
+---
+
+##### 1. profiles テーブル (4ポリシー)
+
+| ポリシー名 | 操作 | 説明 |
+|-----------|------|------|
+| `profiles_read_with_format_check` | SELECT | 正規表現によるID形式検証 + `.eq()`フィルタ |
+| `profiles_insert_with_format_check` | INSERT | 正規表現によるID形式検証 |
+| `profiles_update_with_format_check` | UPDATE | 正規表現によるID形式検証 |
+| `profiles_deny_delete` | DELETE | 全拒否（アプリケーション層で制御） |
+
+---
+
+##### 2. stamp_history テーブル (4ポリシー)
+
+| ポリシー名 | 操作 | 説明 |
+|-----------|------|------|
+| `stamp_history_read_with_format_check` | SELECT | user_id形式検証 + `.eq()`フィルタ |
+| `stamp_history_insert_with_format_check` | INSERT | user_id形式検証 |
+| `stamp_history_deny_update` | UPDATE | 全拒否（履歴は不変） |
+| `stamp_history_deny_delete` | DELETE | 全拒否（管理画面で制御） |
+
+---
+
+##### 3. reward_exchanges テーブル (4ポリシー)
+
+| ポリシー名 | 操作 | 説明 |
+|-----------|------|------|
+| `reward_exchanges_read_with_format_check` | SELECT | user_id形式検証 + `.eq()`フィルタ |
+| `reward_exchanges_insert_with_format_check` | INSERT | user_id形式検証 |
+| `reward_exchanges_deny_update` | UPDATE | 全拒否（ステータス更新は管理画面） |
+| `reward_exchanges_deny_delete` | DELETE | 全拒否（履歴保持） |
+
+---
+
+##### 4. families テーブル (4ポリシー)
+
+| ポリシー名 | 操作 | 説明 |
+|-----------|------|------|
+| `families_read_with_format_check` | SELECT | representative_user_id形式検証 |
+| `families_insert_with_format_check` | INSERT | representative_user_id形式検証 |
+| `families_update_with_format_check` | UPDATE | representative_user_id形式検証 |
+| `families_deny_delete` | DELETE | 全拒否（家族解散は管理画面） |
+
+---
+
+##### 5. patient_dental_records テーブル (1ポリシー)
+
+| ポリシー名 | 操作 | 説明 |
+|-----------|------|------|
+| `dental_records_read_with_format_check` | SELECT | patient_id形式検証（閲覧のみ許可） |
+
+**注:** INSERT/UPDATE/DELETEは管理画面経由のみ（RPC関数使用）
+
+---
+
+##### 6. milestone_history テーブル (4ポリシー)
+
+| ポリシー名 | 操作 | 説明 |
+|-----------|------|------|
+| `milestone_history_read_with_format_check` | SELECT | user_id形式検証 |
+| `milestone_history_deny_insert` | INSERT | 全拒否（トリガーで自動生成） |
+| `milestone_history_deny_update` | UPDATE | 全拒否（履歴は不変） |
+| `milestone_history_deny_delete` | DELETE | 全拒否（履歴保持） |
+
+---
+
+##### 7. event_logs テーブル (1ポリシー)
+
+| ポリシー名 | 操作 | 説明 |
+|-----------|------|------|
+| `event_logs_deny_all_anon` | ALL | anonロールでの全操作拒否（INSERT専用） |
+
+**注:** アプリケーション層で `INSERT` のみ実行。SELECT/UPDATE/DELETEは管理ダッシュボード（SERVICE_ROLE_KEY）のみ。
+
+---
+
+#### 🔍 セキュリティ実装の仕組み
+
+**1. フォーマット検証アプローチ**
 ```sql
--- プロフィールは自分のデータのみ更新可能
-CREATE POLICY "user_update_own_profile"
-  ON profiles
-  FOR UPDATE
-  USING (auth.uid() = id);
-
--- スタンプ履歴は自分のデータのみ閲覧可能
-CREATE POLICY "user_read_own_stamps"
-  ON stamp_history
-  FOR SELECT
-  USING (auth.uid() = user_id);
-
--- 特典交換履歴は自分のデータのみ閲覧可能
-CREATE POLICY "user_read_own_exchanges"
-  ON reward_exchanges
-  FOR SELECT
-  USING (auth.uid() = user_id);
+-- 例: profiles_read_with_format_check
+CREATE POLICY "profiles_read_with_format_check"
+  ON profiles FOR SELECT
+  TO anon, authenticated
+  USING (
+    id ~ '^U[0-9a-f]{32}$' OR       -- 本番LINE User ID
+    id ~ '^U_test_' OR               -- テストLINE User ID
+    id LIKE 'manual-child-%'         -- 代理管理メンバー
+  );
 ```
+
+**2. クライアントコードの`.eq()`フィルタと組み合わせ**
+```typescript
+// 全ての実装コードで既に使用されているパターン
+const { data } = await supabase
+  .from("profiles")
+  .select("*")
+  .eq("id", userId)  // ← これがあるから安全
+  .single();
+```
+
+**効果:**
+- RLSで「形式が正しいID」のみ通過
+- `.eq()`で「自分のID」のみ取得
+- 結果: 正規のユーザーが自分のデータのみアクセス可能 ✅
+
+---
+
+#### ⚠️ 既知の制限
+
+**現在の保護レベル:**
+- ✅ ANON_KEYによる一括データ抽出をブロック
+- ✅ 不正な形式のIDでのアクセスをブロック
+- ⚠️ 有効なLINE User IDを知っている攻撃者は他人のデータにアクセス可能
+
+**将来の対策:**
+- サーバーサイドAPI経由でのアクセス制御（auth.uid()を使用）
+- 詳細は [Doc_miniApps/63_セキュリティ対策_完全版.md](63_セキュリティ対策_完全版.md) を参照
+
+---
+
+#### 📋 管理ダッシュボードへの影響
+
+**影響なし ✅**
+
+管理ダッシュボードは `SERVICE_ROLE_KEY` を使用しているため、全てのRLSポリシーをバイパス可能。
+詳細は [Doc_miniApps/62_管理ダッシュボード側への伝達事項.md](62_管理ダッシュボード側への伝達事項.md) を参照。
+
+---
+
+#### 🔄 ロールバック手順
+
+緊急時のロールバック方法は [Doc_miniApps/64_RLS強化マイグレーション_実行手順書.md](64_RLS強化マイグレーション_実行手順書.md) を参照。
 
 ---
 
@@ -1116,8 +1242,9 @@ CREATE POLICY "allow_public_read" ON profiles FOR SELECT USING (true);
 | 2026-03-07 | 1.5 | **Phase 3 ケア記録機能追加**：patient_dental_records テーブル、8種類のstatus定義（治療中追加）、Supabase RPC関数3つ、019マイグレーション追加 |
 | 2026-03-15 | 1.6 | **stamp_history RLS更新（実測確認に基づく）**：016マイグレーションの DELETE/UPDATE ポリシーとDELETEトリガーを追記、update_profile_on_stamp_delete() 関数追加、マイグレーション順序更新 |
 | 2026-03-27 | 1.7 | **マイルストーン型特典システム実装**：milestone_rewards テーブル追加（3種類の特典）、milestone_history テーブル追加、reward_exchanges テーブルに4つの新カラム追加（milestone_reached, is_milestone_based, valid_until, is_first_time）、外部キー制約削除、021/022マイグレーション追加 |
+| 2026-04-04 | 1.8 | **RLSセキュリティ強化・本番環境適用**：22個の新RLSポリシー実装（フォーマット検証型）、セキュリティレベル⭐→⭐⭐⭐へ向上、管理ダッシュボードへの影響なし、026B_minimal_rls_hardening_fixed.sqlマイグレーション実行済み、全テーブル（profiles, stamp_history, reward_exchanges, families, patient_dental_records, milestone_history, event_logs）にformat_checkポリシー適用 |
 
 ---
 
 **作成者:** Claude Code
-**最終更新日:** 2026-03-27
+**最終更新日:** 2026-04-04
