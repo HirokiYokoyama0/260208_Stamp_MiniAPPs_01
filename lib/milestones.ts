@@ -203,7 +203,7 @@ export async function grantMilestoneReward(
       user_id: userId,
       reward_id: reward.id,
       milestone_reached: milestone,
-      status: 'pending',
+      status: 'approved', // ← 修正: 自動付与は「交換申請」状態（approved）
       valid_until: validUntil,
       is_first_time: isFirstTime,
       is_milestone_based: true,
