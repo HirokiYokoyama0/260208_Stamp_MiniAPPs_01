@@ -23,6 +23,12 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<AddStampResponse>> {
   try {
+    // Service Role Keyを使用するSupabaseクライアント（RLSバイパス）
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const body: ManualStampRequest = await request.json();
     const { userId, staffPin, newStampCount } = body;
 
@@ -65,7 +71,7 @@ export async function POST(
     }
 
     // 現在のスタンプ数を取得
-    const { data: profileData, error: fetchError } = await supabase
+    const { data: profileData, error: fetchError } = await supabaseAdmin
       .from("profiles")
       .select("stamp_count")
       .eq("id", userId)
@@ -113,7 +119,7 @@ export async function POST(
     // スタッフ操作を「起点」として扱う: 古い履歴を削除
     // 理由: トリガーはMAX(stamp_number)を計算するため、古いレコードが残ると
     //       次回のQRスキャン時に誤った値が計算される
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await supabaseAdmin
       .from("stamp_history")
       .delete()
       .eq("user_id", userId);
@@ -132,7 +138,7 @@ export async function POST(
 
     console.log(`🗑️ スタッフ操作を起点として設定: User ${userId} の古い履歴を削除`);
 
-    const { error: insertError } = await supabase.from("stamp_history").insert({
+    const { error: insertError } = await supabaseAdmin.from("stamp_history").insert({
       user_id: userId,
       visit_date: now.toISOString(),
       stamp_number: newStampCount,
@@ -155,7 +161,7 @@ export async function POST(
     }
 
     // profiles.stamp_count を直接更新する（トリガーは MAX を使うため減らす操作に対応できない）
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from("profiles")
       .update({
         stamp_count: newStampCount,
