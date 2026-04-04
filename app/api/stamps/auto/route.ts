@@ -99,10 +99,10 @@ export async function POST(req: Request) {
       }
     }
 
-    // 現在のスタンプ数を取得
+    // 現在のスタンプ数と家族情報を取得
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("stamp_count")
+      .select("stamp_count, family_id")
       .eq("id", userId)
       .single();
 
@@ -116,6 +116,27 @@ export async function POST(req: Request) {
 
     const currentStampCount = profile.stamp_count || 0;
     const newStampNumber = currentStampCount + amount;
+
+    // 家族スタンプ合算値を取得（マイルストーン判定用）
+    let effectiveStampCountOld = currentStampCount;
+    let effectiveStampCountNew = newStampNumber;
+
+    if (profile.family_id) {
+      const { data: familyTotal } = await supabase
+        .from("family_stamp_totals")
+        .select("total_stamp_count, member_count")
+        .eq("family_id", profile.family_id)
+        .single();
+
+      // 2人以上の家族の場合は家族合算値を使用
+      if (familyTotal && familyTotal.member_count >= 2) {
+        const oldFamilyTotal = familyTotal.total_stamp_count - amount; // 付与前の家族合算
+        effectiveStampCountOld = oldFamilyTotal;
+        effectiveStampCountNew = familyTotal.total_stamp_count; // 付与後の家族合算
+
+        console.log(`👨‍👩‍👧 家族スタンプ合算でマイルストーン判定: ${oldFamilyTotal} → ${familyTotal.total_stamp_count}`);
+      }
+    }
 
     // stamp_historyに記録を追加
     const { data: historyData, error: historyError } = await supabase
@@ -161,8 +182,8 @@ export async function POST(req: Request) {
 
     console.log(`✅ QRスタンプ自動付与成功: ${userId} (+${amount}個 → 合計${newStampNumber}個)`);
 
-    // マイルストーン判定と特典自動付与（重複チェック付き）
-    const milestones = await checkMilestones(userId, currentStampCount, newStampNumber);
+    // マイルストーン判定と特典自動付与（重複チェック付き、家族スタンプ合算対応）
+    const milestones = await checkMilestones(userId, effectiveStampCountOld, effectiveStampCountNew);
     const grantedRewards = [];
 
     for (const { milestone, rewardType } of milestones) {
