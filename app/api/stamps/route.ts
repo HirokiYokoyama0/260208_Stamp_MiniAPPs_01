@@ -111,10 +111,10 @@ export async function POST(
       console.log(`🛒 [Stamps API] 購買インセンティブ: 1日1回制限をスキップ`);
     }
 
-    // 現在のスタンプ数を取得（次のstamp_numberを決定するため）
+    // 現在のスタンプ数と家族情報を取得（次のstamp_numberを決定するため）
     const { data: profileData, error: fetchError } = await supabase
       .from("profiles")
-      .select("stamp_count")
+      .select("stamp_count, family_id")
       .eq("id", userId)
       .single();
 
@@ -132,6 +132,27 @@ export async function POST(
 
     const currentStampCount = profileData?.stamp_count ?? 0;
     const nextStampNumber = currentStampCount + stampAmount;
+
+    // 家族スタンプ合算値を取得（マイルストーン判定用）
+    let effectiveStampCountOld = currentStampCount;
+    let effectiveStampCountNew = nextStampNumber;
+
+    if (profileData?.family_id) {
+      const { data: familyTotal } = await supabase
+        .from("family_stamp_totals")
+        .select("total_stamp_count, member_count")
+        .eq("family_id", profileData.family_id)
+        .single();
+
+      // 2人以上の家族の場合は家族合算値を使用
+      if (familyTotal && familyTotal.member_count >= 2) {
+        const oldFamilyTotal = familyTotal.total_stamp_count - stampAmount; // 付与前の家族合算
+        effectiveStampCountOld = oldFamilyTotal;
+        effectiveStampCountNew = familyTotal.total_stamp_count; // 付与後の家族合算
+
+        console.log(`👨‍👩‍👧 家族スタンプ合算でマイルストーン判定: ${oldFamilyTotal} → ${familyTotal.total_stamp_count}`);
+      }
+    }
 
     // stamp_historyに新規レコードを挿入
     const { data: stampData, error: insertError } = await supabase
@@ -171,8 +192,8 @@ export async function POST(
 
     const finalStampCount = updatedProfile?.stamp_count ?? nextStampNumber;
 
-    // マイルストーン判定と特典自動付与（重複チェック付き）
-    const milestones = await checkMilestones(userId, currentStampCount, finalStampCount);
+    // マイルストーン判定と特典自動付与（重複チェック付き、家族スタンプ合算対応）
+    const milestones = await checkMilestones(userId, effectiveStampCountOld, effectiveStampCountNew);
     const grantedRewards = [];
 
     for (const { milestone, rewardType } of milestones) {
