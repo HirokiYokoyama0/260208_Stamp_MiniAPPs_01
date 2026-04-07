@@ -409,8 +409,11 @@ export default function AdultHome() {
         </div>
       </section>
 
-      {/* 来院スタンプボタン */}
-      <section className="px-2">
+      {/* 来院スタンプボタン - 一時的に無効化（2026-04-07）
+          理由: カメラ用QRとアプリ内スキャン用QRの混在による混乱を防ぐため
+          カメラでQRコードを読み込む方法のみ有効化
+          関連: Doc_miniApps/123_アプリ内スキャン機能_一時無効化.md */}
+      {/* <section className="px-2">
         <QRScanner
           className="w-full bg-gray-100 text-gray-700 hover:bg-gray-200 py-2.5 text-xs font-medium"
           onScan={async (qrValue) => {
@@ -442,7 +445,7 @@ export default function AdultHome() {
             console.error("QR scan error:", err);
           }}
         />
-      </section>
+      </section> */}
 
       {/* スタンプ進捗 */}
       <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
