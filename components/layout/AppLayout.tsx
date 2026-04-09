@@ -11,12 +11,14 @@ import {
   Building2,
   Settings,
 } from "lucide-react";
+import liff from "@line/liff";
 import { useLiff } from "@/hooks/useLiff";
 import { ViewModeProvider, useViewMode } from "@/contexts/ViewModeContext";
 import FriendshipPromptModal from "@/components/features/FriendshipPromptModal";
 import SurveyModal from "@/components/survey/SurveyModal";
 import KidsSlotButton from "@/components/shared/KidsSlotButton";
 import { logAppOpen } from "@/lib/analytics";
+import { ExternalBrowserWarning } from "@/components/ExternalBrowserWarning";
 
 const TABS = [
   { href: "/", label: "会員証", icon: CreditCard, kidsHref: undefined, kidsDisabled: false },
@@ -178,6 +180,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [showFriendshipModal, setShowFriendshipModal] = useState(false);
   const [hasShownModal, setHasShownModal] = useState(false);
 
+  // 🆕 外部ブラウザ判定
+  const [isExternalBrowser, setIsExternalBrowser] = useState(false);
+  const [isLiffChecked, setIsLiffChecked] = useState(false);
+
   // アンケートモーダル関連のstate
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [surveyData, setSurveyData] = useState<{
@@ -185,6 +191,28 @@ export function AppLayout({ children }: AppLayoutProps) {
     title: string;
     description?: string;
   } | null>(null);
+
+  // 🆕 外部ブラウザチェック（LIFF初期化後に実行）
+  useEffect(() => {
+    // isLoadingがfalseになったらチェック（LIFF初期化完了）
+    if (!isLoading && !isLiffChecked) {
+      try {
+        // LINEアプリ内で開いているかチェック
+        if (!liff.isInClient()) {
+          console.warn("⚠️ [AppLayout] 外部ブラウザで開かれています");
+          setIsExternalBrowser(true);
+        } else {
+          console.log("✅ [AppLayout] LINEアプリ内で開かれています");
+          setIsExternalBrowser(false);
+        }
+      } catch (error) {
+        console.error("❌ [AppLayout] LIFF判定エラー:", error);
+        // エラーの場合は通常通り表示（安全策）
+        setIsExternalBrowser(false);
+      }
+      setIsLiffChecked(true);
+    }
+  }, [isLoading, isLiffChecked]);
 
   // アプリ起動ログ
   useEffect(() => {
@@ -289,6 +317,11 @@ export function AppLayout({ children }: AppLayoutProps) {
       setShowSurveyModal(false);
     }
   };
+
+  // 🆕 外部ブラウザで開かれている場合、誘導画面を表示
+  if (isLiffChecked && isExternalBrowser) {
+    return <ExternalBrowserWarning />;
+  }
 
   return (
     <ViewModeProvider>
