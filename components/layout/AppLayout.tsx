@@ -193,10 +193,10 @@ export function AppLayout({ children }: AppLayoutProps) {
     description?: string;
   } | null>(null);
 
-  // 🆕 外部ブラウザチェック（LIFF初期化後に実行）
+  // 🆕 外部ブラウザチェック（LIFF初期化＆ログイン完了後に実行）
   useEffect(() => {
-    // isLoadingがfalseになったらチェック（LIFF初期化完了）
-    if (!isLoading && !isLiffChecked) {
+    // isLoading=false かつ isLoggedIn=true になったらチェック（認証フロー完了後）
+    if (!isLoading && isLoggedIn && !isLiffChecked) {
       try {
         // LINEアプリ内で開いているかチェック
         if (!liff.isInClient()) {
@@ -213,7 +213,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       }
       setIsLiffChecked(true);
     }
-  }, [isLoading, isLiffChecked]);
+  }, [isLoading, isLoggedIn, isLiffChecked]);
 
   // アプリ起動ログ
   useEffect(() => {

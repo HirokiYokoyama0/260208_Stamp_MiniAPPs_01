@@ -36,21 +36,19 @@ export function ExternalBrowserWarning({ onContinue }: ExternalBrowserWarningPro
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
         {/* アイコン */}
         <div className="mb-6 text-center">
-          <div className="mb-4 text-6xl">⚠️</div>
+          <div className="mb-4 text-6xl">ℹ️</div>
           <h1 className="mb-2 text-2xl font-bold text-gray-800">
-            このページはLINEアプリで
-            <br />
-            開いてください
+            外部ブラウザで開かれています
           </h1>
           <p className="text-sm text-gray-600">
-            外部ブラウザでは正常に動作しません
+            LINEアプリで開くことをおすすめします
           </p>
         </div>
 
         {/* 説明 */}
         <div className="mb-6 rounded-lg bg-blue-50 p-4">
           <p className="text-sm text-gray-700">
-            つくばホワイト歯科の会員アプリは、LINEアプリ内でのみご利用いただけます。
+            外部ブラウザでも利用できますが、一部機能（カメラQRスキャンなど）が制限される場合があります。
           </p>
         </div>
 
@@ -84,9 +82,9 @@ export function ExternalBrowserWarning({ onContinue }: ExternalBrowserWarningPro
         {/* このまま続けるボタン */}
         <button
           onClick={handleContinueAnyway}
-          className="w-full rounded-lg border-2 border-amber-300 bg-amber-50 px-6 py-4 font-bold text-amber-800 transition-all hover:bg-amber-100 active:scale-[0.98]"
+          className="w-full rounded-lg border-2 border-blue-300 bg-blue-50 px-6 py-4 font-bold text-blue-800 transition-all hover:bg-blue-100 active:scale-[0.98]"
         >
-          このまま続ける（一部機能が制限されます）
+          OK（このまま外部ブラウザで続ける）
         </button>
 
         {/* 手順説明（表示/非表示） */}
