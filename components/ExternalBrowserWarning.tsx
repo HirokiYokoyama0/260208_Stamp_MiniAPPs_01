@@ -4,6 +4,7 @@ import { useState } from "react";
 
 export function ExternalBrowserWarning() {
   const [showInstructions, setShowInstructions] = useState(false);
+  const [continueAnyway, setContinueAnyway] = useState(false);
 
   const handleOpenInLine = () => {
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
@@ -20,6 +21,15 @@ export function ExternalBrowserWarning() {
   const handleShowInstructions = () => {
     setShowInstructions(true);
   };
+
+  const handleContinueAnyway = () => {
+    setContinueAnyway(true);
+  };
+
+  // ユーザーが「このまま続ける」を選択した場合は警告を非表示
+  if (continueAnyway) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-purple-50 p-4">
@@ -66,9 +76,17 @@ export function ExternalBrowserWarning() {
         {/* QRコード再スキャンボタン */}
         <button
           onClick={handleShowInstructions}
-          className="w-full rounded-lg border-2 border-gray-300 bg-white px-6 py-4 font-bold text-gray-700 transition-all hover:bg-gray-50 active:scale-[0.98]"
+          className="mb-3 w-full rounded-lg border-2 border-gray-300 bg-white px-6 py-4 font-bold text-gray-700 transition-all hover:bg-gray-50 active:scale-[0.98]"
         >
           QRコードを再スキャン
+        </button>
+
+        {/* このまま続けるボタン */}
+        <button
+          onClick={handleContinueAnyway}
+          className="w-full rounded-lg border-2 border-amber-300 bg-amber-50 px-6 py-4 font-bold text-amber-800 transition-all hover:bg-amber-100 active:scale-[0.98]"
+        >
+          このまま続ける（一部機能が制限されます）
         </button>
 
         {/* 手順説明（表示/非表示） */}
