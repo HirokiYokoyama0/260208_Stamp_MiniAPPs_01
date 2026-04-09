@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 
-export function ExternalBrowserWarning() {
+interface ExternalBrowserWarningProps {
+  onContinue?: () => void;
+}
+
+export function ExternalBrowserWarning({ onContinue }: ExternalBrowserWarningProps) {
   const [showInstructions, setShowInstructions] = useState(false);
-  const [continueAnyway, setContinueAnyway] = useState(false);
 
   const handleOpenInLine = () => {
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
@@ -23,13 +26,10 @@ export function ExternalBrowserWarning() {
   };
 
   const handleContinueAnyway = () => {
-    setContinueAnyway(true);
+    if (onContinue) {
+      onContinue();
+    }
   };
-
-  // ユーザーが「このまま続ける」を選択した場合は警告を非表示
-  if (continueAnyway) {
-    return null;
-  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-purple-50 p-4">

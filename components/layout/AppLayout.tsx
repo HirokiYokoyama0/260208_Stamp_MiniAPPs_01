@@ -183,6 +183,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   // 🆕 外部ブラウザ判定
   const [isExternalBrowser, setIsExternalBrowser] = useState(false);
   const [isLiffChecked, setIsLiffChecked] = useState(false);
+  const [allowExternalBrowser, setAllowExternalBrowser] = useState(false);
 
   // アンケートモーダル関連のstate
   const [showSurveyModal, setShowSurveyModal] = useState(false);
@@ -319,8 +320,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   };
 
   // 🆕 外部ブラウザで開かれている場合、誘導画面を表示
-  if (isLiffChecked && isExternalBrowser) {
-    return <ExternalBrowserWarning />;
+  if (isLiffChecked && isExternalBrowser && !allowExternalBrowser) {
+    return <ExternalBrowserWarning onContinue={() => setAllowExternalBrowser(true)} />;
   }
 
   return (
