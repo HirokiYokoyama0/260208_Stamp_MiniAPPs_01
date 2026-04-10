@@ -180,6 +180,49 @@ export async function POST(
       console.log('✅ [1日1回制限チェック] 本日のQRスタンプなし、スキャン可能');
     }
 
+    // 🔒 5秒以内の重複リクエスト防止チェック
+    const { data: recentStamps, error: recentCheckError } = await supabase
+      .from("stamp_history")
+      .select("created_at, amount, stamp_method")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!recentCheckError && recentStamps) {
+      const lastStampTime = new Date(recentStamps.created_at);
+      const now = new Date();
+      const diffMs = now.getTime() - lastStampTime.getTime();
+
+      // 5秒以内の連続スキャンを拒否
+      if (diffMs < 5000) {
+        console.log(`⚠️ [重複リクエスト防止] User ${userId}, 前回から${diffMs}ms, 拒否`);
+        console.log(`   前回: ${lastStampTime.toISOString()}, 今回: ${now.toISOString()}`);
+
+        await logStampScanFail({
+          error: "Duplicate request within 5 seconds",
+          userId: userId,
+          errorType: "duplicate_request",
+          httpStatus: 429,
+          requestType: type,
+          requestStamps: stamps,
+        });
+
+        return NextResponse.json(
+          {
+            success: false,
+            message: "処理中です。少しお待ちください。",
+            error: "Duplicate request within 5 seconds",
+            duplicateRequest: true,
+            waitSeconds: Math.ceil((5000 - diffMs) / 1000)
+          },
+          { status: 429 } // 429 Too Many Requests
+        );
+      }
+
+      console.log(`✅ [重複リクエストチェック] 前回から${diffMs}ms経過、処理続行`);
+    }
+
     const currentStampCount = profileData.stamp_count ?? 0;
     const nextStampNumber = currentStampCount + stamps;
 

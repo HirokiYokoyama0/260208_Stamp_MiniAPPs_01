@@ -99,6 +99,55 @@ export async function POST(req: Request) {
       }
     }
 
+    // 🔒 5秒以内の重複リクエスト防止チェック
+    const { data: recentStamps, error: recentCheckError } = await supabase
+      .from("stamp_history")
+      .select("created_at, amount, stamp_method")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!recentCheckError && recentStamps) {
+      const lastStampTime = new Date(recentStamps.created_at);
+      const now = new Date();
+      const diffMs = now.getTime() - lastStampTime.getTime();
+
+      // 5秒以内の連続スキャンを拒否
+      if (diffMs < 5000) {
+        console.log(`⚠️ [重複リクエスト防止] User ${userId}, 前回から${diffMs}ms, 拒否`);
+        console.log(`   前回: ${lastStampTime.toISOString()}, 今回: ${now.toISOString()}`);
+
+        // イベントログ記録（失敗: 重複リクエスト）
+        try {
+          const stampType = location === "shop" ? "purchase" :
+                           amount === 15 ? "premium" : "regular";
+          await logStampScanFail({
+            error: "Duplicate request within 5 seconds",
+            userId: userId,
+            errorType: "duplicate_request",
+            httpStatus: 429,
+            requestType: stampType,
+            requestStamps: amount,
+          });
+        } catch (logError) {
+          console.error('❌ [API/Auto] イベントログ記録エラー:', logError);
+        }
+
+        return NextResponse.json(
+          {
+            success: false,
+            message: "処理中です。少しお待ちください。",
+            duplicateRequest: true,
+            waitSeconds: Math.ceil((5000 - diffMs) / 1000)
+          },
+          { status: 429 } // 429 Too Many Requests
+        );
+      }
+
+      console.log(`✅ [重複リクエストチェック] 前回から${diffMs}ms経過、処理続行`);
+    }
+
     // 現在のスタンプ数と家族情報を取得
     const { data: profile, error: profileError } = await supabase
       .from("profiles")

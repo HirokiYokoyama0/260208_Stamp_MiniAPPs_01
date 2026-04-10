@@ -39,9 +39,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# development scripts (debugging only)
+# development scripts (debugging/investigation only)
 /scripts/check-*.mjs
 /scripts/test-*.mjs
 /scripts/force-*.mjs
 /scripts/restore-*.mjs
 /scripts/verify-*.mjs
+/scripts/debug-*.sql
+/scripts/debug-*.mjs
+/scripts/create-*.mjs
+/scripts/clean-*.mjs
+/scripts/find-*.mjs
+/scripts/investigate-*.mjs

@@ -789,13 +789,29 @@ SELECT * FROM search_profiles_by_real_name('太郎');
 
 ---
 
-##### 7. event_logs テーブル (1ポリシー)
+##### 7. event_logs テーブル (4ポリシー)
 
 | ポリシー名 | 操作 | 説明 |
 |-----------|------|------|
-| `event_logs_deny_all_anon` | ALL | anonロールでの全操作拒否（INSERT専用） |
+| `event_logs_deny_select_anon` | SELECT | anon/authenticatedロールでのSELECT禁止（管理ダッシュボードはSERVICE_ROLE_KEYでバイパス） |
+| `event_logs_allow_insert_with_format_check` | INSERT | LINE User ID形式チェック付きでINSERT許可 |
+| `event_logs_deny_update` | UPDATE | 全拒否（イベントログは不変） |
+| `event_logs_deny_delete` | DELETE | 全拒否（履歴保持） |
 
-**注:** アプリケーション層で `INSERT` のみ実行。SELECT/UPDATE/DELETEは管理ダッシュボード（SERVICE_ROLE_KEY）のみ。
+**INSERTポリシーの条件:**
+```sql
+WITH CHECK (
+  user_id IS NULL OR                          -- 匿名イベント
+  user_id ~ '^U[0-9a-f]{32}$' OR             -- 本番LINE User ID
+  user_id ~ '^U_test_' OR                     -- テストLINE User ID
+  user_id LIKE 'manual-child-%'               -- 代理管理メンバー
+);
+```
+
+**注:**
+- LIFFアプリ（ANON_KEY）: INSERTのみ可能、SELECT/UPDATE/DELETEは不可
+- 管理ダッシュボード（SERVICE_ROLE_KEY）: RLSをバイパスして全操作可能
+- セキュリティ強化（026B）でINSERTも禁止されたが、031/032で修正済み（2026-04-05）
 
 ---
 
