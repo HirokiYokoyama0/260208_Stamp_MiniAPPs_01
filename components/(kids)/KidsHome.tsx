@@ -8,7 +8,6 @@ import { calculateStampDisplay } from "@/lib/stamps";
 import { fetchUserMemo, formatVisitDate } from "@/lib/memo";
 import { UserMemo } from "@/types/memo";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
@@ -52,7 +51,6 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [familyStampCount, setFamilyStampCount] = useState<number | null>(null);
   const [familyId, setFamilyId] = useState<string | null>(null);
-
   // 親の画面に戻る
   const handleBackToParent = async () => {
     setSelectedChildId(null); // selectedChildIdをクリア
@@ -68,6 +66,7 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
           // 仮想メンバーの場合（props経由）
           setDisplayName(profileOverride.display_name);
           setStampCount(profileOverride.stamp_count);
+
           setIsLoading(false);
           return;
         }
@@ -125,6 +124,7 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
               }
             }
           }
+
           setIsLoading(false);
           return;
         }
@@ -167,6 +167,8 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
         // 次回メモを取得
         const memo = await fetchUserMemo(liffProfile.userId);
         setUserMemo(memo);
+
+
       } catch (err) {
         console.error("❌ 予期しないエラー:", err);
       } finally {
@@ -371,16 +373,6 @@ export default function KidsHome({ profileOverride }: KidsHomeProps) {
             {getEncouragementMessage()}
           </p>
         </div>
-      </div>
-
-      {/* スロットゲームボタン */}
-      <div className="mt-8 text-center">
-        <Link
-          href="/slot"
-          className="inline-block rounded-full bg-gradient-to-r from-kids-pink to-kids-purple px-8 py-4 text-2xl font-bold text-white shadow-2xl transition-all hover:scale-105 active:scale-95"
-        >
-          🎰 ゲームで あそぶ！
-        </Link>
       </div>
 
       {/* メッセージ */}

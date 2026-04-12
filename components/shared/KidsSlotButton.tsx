@@ -1,14 +1,49 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useViewMode } from "@/contexts/ViewModeContext";
+import { useLiff } from "@/hooks/useLiff";
+import { supabase } from "@/lib/supabase";
 
 export default function KidsSlotButton() {
-  const { viewMode } = useViewMode();
+  const { viewMode, selectedChildId } = useViewMode();
+  const { profile } = useLiff();
   const pathname = usePathname();
+  const [slotUnlocked, setSlotUnlocked] = useState(false);
+
+  useEffect(() => {
+    const checkUnlock = async () => {
+      const userId = selectedChildId ?? profile?.userId;
+      if (!userId) return;
+
+      try {
+        const now = new Date();
+        const jstOffset = 9 * 60 * 60 * 1000;
+        const jstNow = new Date(now.getTime() + jstOffset);
+        const todayStart = new Date(jstNow.getFullYear(), jstNow.getMonth(), jstNow.getDate());
+        const todayStartUTC = new Date(todayStart.getTime() - jstOffset).toISOString();
+
+        const { data } = await supabase
+          .from("event_logs")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("event_name", "slot_unlock")
+          .gte("created_at", todayStartUTC)
+          .limit(1);
+
+        setSlotUnlocked(data !== null && data.length > 0);
+      } catch {
+        // ignore
+      }
+    };
+
+    checkUnlock();
+  }, [selectedChildId, profile?.userId]);
 
   if (viewMode !== "kids") return null;
+  if (!slotUnlocked) return null;
 
   const isActive = pathname === "/slot";
 

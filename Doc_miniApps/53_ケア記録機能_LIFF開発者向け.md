@@ -339,7 +339,7 @@ export default function ToothDiagram({ record, onToothClick, isKidsMode = false 
 
   const getToothColor = (toothNumber: string): string => {
     const data = record?.tooth_data?.[toothNumber];
-    if (!data) return '#e0e0e0'; // グレー（記録なし）
+    if (!data) return '#ffffff'; // 白（記録なし）
     return data.color; // データベースから取得した色
   };
 
@@ -396,12 +396,13 @@ export default function ToothDiagram({ record, onToothClick, isKidsMode = false 
 | status | color | 意味 |
 |--------|-------|------|
 | `cavity_completed` | `#10b981` (緑) | 虫歯治療済み |
-| `observation` | `#fbbf24` (黄) | 経過観察 |
-| `cavity_planned` | `#ef4444` (赤) | 治療予定 |
+| `observation` | `#eab308` (黄) | 経過観察 |
+| `cavity_planned` | `#dc2626` (赤) | 治療予定 |
+| `in_treatment` | `#f97316` (オレンジ) | 治療中 |
 | `crown` | `#3b82f6` (青) | 被せ物 |
-| `scaling_completed` | `#10b981` (緑) | 歯石除去済み |
-| `cleaning` | `#8b5cf6` (紫) | クリーニング |
-| (記録なし) | `#e0e0e0` (グレー) | 未記録 |
+| `scaling_completed` | `#06b6d4` (水色) | 歯石除去済み |
+| `cleaning` | `#a855f7` (紫) | クリーニング |
+| (記録なし) | `#ffffff` (白) | 未記録 |
 
 ---
 

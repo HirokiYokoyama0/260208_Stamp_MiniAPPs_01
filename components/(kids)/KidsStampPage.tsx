@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useLiff } from "@/hooks/useLiff";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Camera } from "lucide-react";
 import {
   fetchStampCount,
   fetchStampHistory,
@@ -15,6 +16,7 @@ import {
 import { StampHistoryRecord } from "@/types/stamp";
 import { supabase } from "@/lib/supabase";
 import { StaffPinModal } from "@/components/shared/StaffPinModal";
+import liff from "@line/liff";
 
 const STAMP_GOAL = 10;
 
@@ -35,6 +37,84 @@ export default function KidsStampPage() {
   const [isStaffLoading, setIsStaffLoading] = useState(false);
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [slotUnlocked, setSlotUnlocked] = useState(false);
+  const [slotUnlockLoading, setSlotUnlockLoading] = useState(false);
+  const [slotUnlockMessage, setSlotUnlockMessage] = useState<string | null>(null);
+
+  // スロット解放済みか確認（event_logsテーブル）
+  const checkSlotUnlock = useCallback(async (userId: string) => {
+    try {
+      const now = new Date();
+      const jstOffset = 9 * 60 * 60 * 1000;
+      const jstNow = new Date(now.getTime() + jstOffset);
+      const todayStart = new Date(jstNow.getFullYear(), jstNow.getMonth(), jstNow.getDate());
+      const todayStartUTC = new Date(todayStart.getTime() - jstOffset).toISOString();
+
+      const { data } = await supabase
+        .from("event_logs")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("event_name", "slot_unlock")
+        .gte("created_at", todayStartUTC)
+        .limit(1);
+
+      if (data && data.length > 0) {
+        setSlotUnlocked(true);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // QRスキャンでスロット解放
+  const handleSlotUnlockScan = useCallback(async () => {
+    const targetId = selectedChildId ?? liffProfile?.userId;
+    if (!targetId) return;
+
+    setSlotUnlockLoading(true);
+    setSlotUnlockMessage(null);
+
+    try {
+      const scanResult = await liff.scanCodeV2();
+      const qrValue = scanResult.value;
+      if (!qrValue) {
+        setSlotUnlockMessage("QRコードを よみとれなかったよ");
+        setSlotUnlockLoading(false);
+        return;
+      }
+
+      let payload: { type?: string };
+      try {
+        payload = JSON.parse(qrValue);
+      } catch {
+        setSlotUnlockMessage("このQRコードは つかえないよ");
+        setSlotUnlockLoading(false);
+        return;
+      }
+
+      if (payload.type !== "slot-unlock") {
+        setSlotUnlockMessage("このQRコードは つかえないよ");
+        setSlotUnlockLoading(false);
+        return;
+      }
+
+      const res = await fetch("/api/slot/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: targetId }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setSlotUnlocked(true);
+        setSlotUnlockMessage(data.alreadyUnlocked ? "もう かいほうずみ だよ！" : "🎰 ゲーム かいほう！あそべるよ！");
+      } else {
+        setSlotUnlockMessage(data.message || "かいほうに しっぱいしました");
+      }
+    } catch {
+      setSlotUnlockMessage("QRコードを よみとれなかったよ");
+    } finally {
+      setSlotUnlockLoading(false);
+    }
+  }, [selectedChildId, liffProfile?.userId]);
 
   // 親の画面に戻る
   const handleBackToParent = async () => {
@@ -177,8 +257,9 @@ export default function KidsStampPage() {
   useEffect(() => {
     if (profileId) {
       fetchData();
+      checkSlotUnlock(profileId);
     }
-  }, [profileId, selectedChildId]);
+  }, [profileId, selectedChildId, checkSlotUnlock]);
 
   const { fullStamps } = calculateStampDisplay(stampCount);
 
@@ -241,6 +322,42 @@ export default function KidsStampPage() {
         <h2 className="mt-3 text-2xl font-bold text-white drop-shadow-lg">
           {displayName}さんの スタンプ
         </h2>
+      </div>
+
+      {/* スロットゲーム解放 */}
+      <div className="mx-auto max-w-md mb-6">
+        {slotUnlocked ? (
+          <div className="rounded-3xl border-4 border-white bg-gradient-to-br from-orange-50 to-yellow-50 p-5 shadow-2xl text-center">
+            <Link
+              href="/slot"
+              className="inline-block rounded-full bg-gradient-to-r from-kids-pink to-kids-purple px-8 py-4 text-2xl font-bold text-white shadow-2xl transition-all hover:scale-105 active:scale-95"
+            >
+              🎰 ゲームで あそぶ！
+            </Link>
+            <p className="mt-2 text-xs text-gray-500">
+              2かい あそべるよ！とくてんが たかいほうが スタンプになるよ！
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-3xl border-4 border-white bg-white p-5 shadow-2xl text-center">
+            <button
+              onClick={handleSlotUnlockScan}
+              disabled={slotUnlockLoading}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-kids-blue to-kids-green px-6 py-3 text-lg font-bold text-white shadow-2xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+            >
+              <Camera size={22} />
+              {slotUnlockLoading ? "よみとりちゅう..." : "📷 QRをよんで ゲームかいほう！"}
+            </button>
+            <p className="mt-2 text-xs text-gray-500">
+              びょういんに いくと ゲームで あそべるよ！
+            </p>
+          </div>
+        )}
+        {slotUnlockMessage && (
+          <p className="mt-3 rounded-xl bg-white/90 px-4 py-2 text-center text-base font-bold text-kids-purple shadow-lg">
+            {slotUnlockMessage}
+          </p>
+        )}
       </div>
 
       {/* スタンプカード */}

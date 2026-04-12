@@ -16,7 +16,7 @@ import { useLiff } from "@/hooks/useLiff";
 import { ViewModeProvider, useViewMode } from "@/contexts/ViewModeContext";
 import FriendshipPromptModal from "@/components/features/FriendshipPromptModal";
 import SurveyModal from "@/components/survey/SurveyModal";
-import KidsSlotButton from "@/components/shared/KidsSlotButton";
+// KidsSlotButtonはスタンプタブに統合済み
 import { logAppOpen } from "@/lib/analytics";
 import { ExternalBrowserWarning } from "@/components/ExternalBrowserWarning";
 
@@ -357,9 +357,6 @@ export function AppLayout({ children }: AppLayoutProps) {
             onPostpone={handlePostponeSurvey}
           />
         )}
-
-        {/* 子供用スロットボタン（ボトムナビ左上） */}
-        <KidsSlotButton />
 
         {/* ボトムナビゲーション */}
         <BottomNavigation />

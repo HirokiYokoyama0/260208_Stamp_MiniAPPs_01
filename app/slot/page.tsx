@@ -311,6 +311,8 @@ export default function SlotPage() {
   const [dailyLimitReached, setDailyLimitReached] = useState(false);
   const [showEndMessage, setShowEndMessage] = useState(false);
   const [todayTotalStamps, setTodayTotalStamps] = useState(0);
+  // 2回のうち高い方を採用するための記録
+  const [roundScores, setRoundScores] = useState<number[]>([]);
   // 隠し機能: 3回タップで解除
   const secretTapRef = useRef(0);
   const secretTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -360,7 +362,10 @@ export default function SlotPage() {
     [targetUserId]
   );
 
-  // 全リール停止時に結果判定 + スタンプ付与
+  // 現在のラウンド（1回目 or 2回目）
+  const currentRound = getTodayPlays() + 1; // 1 or 2
+
+  // 全リール停止時に結果判定（2回とも遊んでから高い方をスタンプ付与）
   const checkResult = useCallback(
     (reels: (string | null)[]) => {
       if (reels.some((r) => r === null)) return;
@@ -382,23 +387,34 @@ export default function SlotPage() {
         logSlotGamePlay({ result: "lose", stampsWon: 1, userId: profile?.userId });
       }
       setSpinning(false);
-      awardSlotStamps(stampsWon);
 
-      // 今日の獲得スタンプを記録
-      addTodayStamps(stampsWon);
-      setTodayTotalStamps(getTodayStamps());
+      const thisRound = getTodayPlays() + 1; // 今回が何回目か
+      const newScores = [...roundScores, stampsWon];
+      setRoundScores(newScores);
 
-      // プレイ回数をインクリメント → 制限チェック
-      incrementTodayPlays();
-      if (getTodayPlays() >= DAILY_LIMIT) {
-        // 結果表示後に終了メッセージを出す
+      if (thisRound === 1) {
+        // 1回目: スタンプまだ付与しない。スコアだけ記録
+        setStampAwarded(null);
+      }
+
+      if (thisRound >= DAILY_LIMIT) {
+        // 2回目完了: 高い方のスコアでスタンプ付与
+        const bestScore = Math.max(...newScores);
+        awardSlotStamps(bestScore);
+        addTodayStamps(bestScore);
+        setTodayTotalStamps(getTodayStamps());
+        setStampAwarded(bestScore);
+
         setTimeout(() => {
           setShowEndMessage(true);
           setDailyLimitReached(true);
         }, 2500);
       }
+
+      // プレイ回数をインクリメント
+      incrementTodayPlays();
     },
-    [profile?.userId, awardSlotStamps]
+    [profile?.userId, awardSlotStamps, roundScores]
   );
 
   const handleStop = useCallback(
@@ -480,6 +496,16 @@ export default function SlotPage() {
         もどる
       </Link>
 
+      {/* ラウンド表示 */}
+      {!dailyLimitReached && (
+        <div className="mb-2 rounded-full bg-white/90 px-6 py-1.5 text-center text-sm font-bold text-orange-700 shadow-lg">
+          🎰 {currentRound}かいめ / {DAILY_LIMIT}かい
+          {roundScores.length === 1 && (
+            <span className="ml-2 text-xs text-gray-500">（1かいめ: ⭐{roundScores[0]}）</span>
+          )}
+        </div>
+      )}
+
       {/* ── スロット機 ── */}
       <div className="mx-auto w-full max-w-[300px]">
         <div className="flex flex-col items-center px-3">
@@ -558,6 +584,11 @@ export default function SlotPage() {
                       🌟 {stampAwarded}こ スタンプ ゲット！
                     </p>
                   )}
+                  {roundScores.length === 1 && stampAwarded === null && !isAwarding && result && (
+                    <p className="mt-0.5 text-[10px] font-bold text-blue-600">
+                      もう1かい あそべるよ！いいほうが スタンプになるよ！
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className="text-xs text-orange-500/50">─ ─ まわしてね ─ ─</p>
@@ -591,7 +622,18 @@ export default function SlotPage() {
               <p className="mb-2 text-lg font-bold text-gray-700">
                 きょうの スロットは<br />おわりだよ！
               </p>
-              {todayTotalStamps > 0 && (
+              {roundScores.length === 2 && (
+                <div className="mb-2">
+                  <div className="flex justify-center gap-3 text-sm text-gray-600 mb-1">
+                    <span className={roundScores[0] >= roundScores[1] ? "font-bold text-orange-600" : ""}>1かいめ: ⭐{roundScores[0]}</span>
+                    <span className={roundScores[1] > roundScores[0] ? "font-bold text-orange-600" : ""}>2かいめ: ⭐{roundScores[1]}</span>
+                  </div>
+                  <p className="text-base font-black text-orange-600">
+                    {roundScores[0] >= roundScores[1] ? "1" : "2"}かいめの とくてん → ⭐{Math.max(...roundScores)}こ ゲット！
+                  </p>
+                </div>
+              )}
+              {roundScores.length < 2 && todayTotalStamps > 0 && (
                 <p className="mb-2 text-base font-black text-orange-600">
                   きょうは ⭐{todayTotalStamps}こ ゲット！
                 </p>
@@ -617,6 +659,10 @@ export default function SlotPage() {
           <p>① まわす！ボタンをおす</p>
           <p>② リールをタップ or ボタンでとめる</p>
           <p>③ まんなかのえが 3つそろったら あたり！</p>
+        </div>
+        <div className="mt-1.5 rounded-lg bg-blue-50 px-2 py-1.5 text-center">
+          <p className="text-[11px] font-bold text-blue-700">🎮 2かい あそべるよ！</p>
+          <p className="text-[10px] text-blue-600">とくてんが たかいほうが スタンプになるよ！</p>
         </div>
 
         {/* 報酬スタンプ数 */}
