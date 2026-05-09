@@ -348,98 +348,65 @@ export default function SettingsPage() {
       <section className="mt-8">
         <h3 className="mb-3 text-sm font-medium text-gray-700">家族管理</h3>
 
-        {/* 家族参加済みの場合 */}
-        {(familyRole && familyId) ? (
-          <button
-            onClick={() => router.push('/family/manage')}
-            className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 p-4 transition-all hover:border-primary hover:bg-primary/5"
-          >
-            <Users size={32} className="text-primary" />
+        <div className="relative">
+          {/* グレーアウトされたボタン */}
+          <div className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 bg-gray-50 p-4 opacity-60 cursor-not-allowed">
+            <Users size={32} className="text-gray-400" />
             <div className="flex-1 text-left">
-              <p className="font-semibold text-gray-800">
-                {familyRole === 'parent' && '家族の管理'}
-                {familyRole === 'child' && '家族情報'}
-              </p>
+              <p className="font-semibold text-gray-600">家族の管理</p>
               <p className="text-xs text-gray-500">
-                {familyRole === 'parent' && '家族メンバーの管理や招待コードの確認'}
-                {familyRole === 'child' && '家族情報を確認'}
+                家族メンバーの管理や招待コードの確認
               </p>
             </div>
-            <span className="text-gray-400">→</span>
-          </button>
-        ) : (
-          /* 家族未参加の場合：説明文 + 2つの選択肢を表示 */
-          <div className="space-y-4">
-            {/* 説明文：現在は個人利用中であることを明示 */}
-            <div className="rounded-lg bg-gray-50 p-4 border border-gray-200">
-              <p className="text-sm text-gray-700 mb-2">
-                <span className="font-semibold">現在、個人でご利用中です。</span>
-              </p>
-              <p className="text-xs text-gray-600">
-                家族でスタンプを共有したい場合は、以下から設定できます。
-              </p>
-            </div>
-
-            {/* 親として家族を作成 */}
-            <button
-              onClick={() => router.push('/family/create')}
-              className="flex w-full items-center gap-4 rounded-lg border-2 border-primary/30 bg-primary/5 p-4 transition-all hover:border-primary hover:bg-primary/10"
-            >
-              <Users size={32} className="text-primary" />
-              <div className="flex-1 text-left">
-                <p className="font-semibold text-gray-800">家族グループを作成</p>
-                <p className="text-xs text-gray-500">
-                  親として家族を作成し、お子様を追加
-                </p>
-              </div>
-              <span className="text-gray-400">→</span>
-            </button>
-
-            {/* 子として家族に参加 */}
-            <button
-              onClick={() => router.push('/family/join')}
-              className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 p-4 transition-all hover:border-primary hover:bg-primary/5"
-            >
-              <Baby size={32} className="text-purple-600" />
-              <div className="flex-1 text-left">
-                <p className="font-semibold text-gray-800">家族に参加</p>
-                <p className="text-xs text-gray-500">
-                  招待コードで既存の家族グループに参加
-                </p>
-              </div>
-              <span className="text-gray-400">→</span>
-            </button>
           </div>
-        )}
+
+          {/* 近日リリース予定バッジ */}
+          <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md">
+            近日リリース予定
+          </div>
+        </div>
+
+        {/* 説明文（控えめに小さく） */}
+        <p className="mt-2 text-[10px] text-gray-400 text-center">
+          家族でスタンプを共有できる機能を準備中です。リリースまでもうしばらくお待ちください。
+        </p>
       </section>
 
       {/* 子供の画面切替セクション（代理管理メンバーがいる場合のみ表示） */}
       {familyRole === 'parent' && proxyChildren.length > 0 && (
         <section className="mt-8">
           <h3 className="mb-3 text-sm font-medium text-gray-700">子供の画面</h3>
-          <div className="space-y-3">
-            {proxyChildren.map((child) => (
-              <button
-                key={child.id}
-                onClick={() => handleSwitchToChild(child.id)}
-                className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 p-4 transition-all hover:border-kids-pink hover:bg-kids-pink/5"
-              >
-                <Baby size={32} className="text-kids-pink" />
-                <div className="flex-1 text-left">
-                  <p className="font-semibold text-gray-800">
-                    子供の画面：{child.real_name || child.display_name || "登録なし"}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    スタンプ {child.stamp_count}個
-                  </p>
+
+          <div className="relative">
+            <div className="space-y-3 opacity-60">
+              {proxyChildren.map((child) => (
+                <div
+                  key={child.id}
+                  className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 bg-gray-50 p-4 cursor-not-allowed"
+                >
+                  <Baby size={32} className="text-gray-400" />
+                  <div className="flex-1 text-left">
+                    <p className="font-semibold text-gray-600">
+                      子供の画面：{child.real_name || child.display_name || "登録なし"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      スタンプ {child.stamp_count}個
+                    </p>
+                  </div>
                 </div>
-                <span className="text-gray-400">→</span>
-              </button>
-            ))}
+              ))}
+            </div>
+
+            {/* 近日リリース予定バッジ */}
+            <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md">
+              近日リリース予定
+            </div>
           </div>
-          <div className="mt-3 rounded-lg bg-kids-pink/5 p-3 text-xs text-gray-600">
-            タップすると、お子様専用の画面（キッズモード）に切り替わります。
-          </div>
+
+          {/* 説明文（控えめに小さく） */}
+          <p className="mt-2 text-[10px] text-gray-400 text-center">
+            お子様専用の画面（キッズモード）機能を準備中です。
+          </p>
         </section>
       )}
     </div>
