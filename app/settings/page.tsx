@@ -33,6 +33,11 @@ export default function SettingsPage() {
   const [editBirthMonth, setEditBirthMonth] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // 家族機能ロック解除状態管理
+  const [isFamilyFeatureUnlocked, setIsFamilyFeatureUnlocked] = useState(false);
+  const [tapCount, setTapCount] = useState(0);
+  const [tapTimer, setTapTimer] = useState<NodeJS.Timeout | null>(null);
+
   // キッズモードの場合は子供用設定画面にリダイレクト
   useEffect(() => {
     if (!viewModeLoading && viewMode === 'kids' && selectedChildId) {
@@ -40,6 +45,12 @@ export default function SettingsPage() {
       router.replace('/child-mode/settings');
     }
   }, [viewMode, selectedChildId, viewModeLoading, router]);
+
+  // ローカルストレージから家族機能ロック状態を読み込み
+  useEffect(() => {
+    const unlocked = localStorage.getItem('familyFeatureUnlocked') === 'true';
+    setIsFamilyFeatureUnlocked(unlocked);
+  }, []);
 
   // ユーザーの家族ロールと代理管理メンバーを取得
   useEffect(() => {
@@ -163,6 +174,54 @@ export default function SettingsPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // 家族の管理ボタン3回タップ検出ハンドラー
+  const handleFamilyManagementTap = () => {
+    // 解除済みの場合は通常のページ遷移
+    if (isFamilyFeatureUnlocked) {
+      router.push('/family-management');
+      return;
+    }
+
+    // タップカウントをインクリメント
+    const newCount = tapCount + 1;
+    setTapCount(newCount);
+
+    // 既存のタイマーをクリア
+    if (tapTimer) {
+      clearTimeout(tapTimer);
+    }
+
+    // 3回タップ検出
+    if (newCount === 3) {
+      // ロック解除
+      localStorage.setItem('familyFeatureUnlocked', 'true');
+      setIsFamilyFeatureUnlocked(true);
+
+      // フィードバック
+      alert('🔓 家族機能のロックを解除しました');
+
+      // カウントリセット
+      setTapCount(0);
+      setTapTimer(null);
+    } else {
+      // 1秒以内に3回タップしなければリセット
+      const timer = setTimeout(() => {
+        setTapCount(0);
+      }, 1000);
+      setTapTimer(timer);
+    }
+  };
+
+  // 家族の管理ボタン長押し（3回タップ後の再ロック用）
+  const handleFamilyManagementLongPress = () => {
+    if (!isFamilyFeatureUnlocked) return;
+
+    // 再ロック
+    localStorage.setItem('familyFeatureUnlocked', 'false');
+    setIsFamilyFeatureUnlocked(false);
+    alert('🔒 家族機能をロックしました');
   };
 
 
@@ -349,27 +408,51 @@ export default function SettingsPage() {
         <h3 className="mb-3 text-sm font-medium text-gray-700">家族管理</h3>
 
         <div className="relative">
-          {/* グレーアウトされたボタン */}
-          <div className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 bg-gray-50 p-4 opacity-60 cursor-not-allowed">
-            <Users size={32} className="text-gray-400" />
-            <div className="flex-1 text-left">
-              <p className="font-semibold text-gray-600">家族の管理</p>
-              <p className="text-xs text-gray-500">
-                家族メンバーの管理や招待コードの確認
-              </p>
-            </div>
-          </div>
+          {isFamilyFeatureUnlocked ? (
+            // ロック解除済み：通常のクリック可能ボタン
+            <button
+              onClick={handleFamilyManagementTap}
+              onDoubleClick={handleFamilyManagementLongPress}
+              className="flex w-full items-center gap-4 rounded-lg border-2 border-primary bg-white p-4 transition-colors hover:bg-primary/5"
+            >
+              <Users size={32} className="text-primary" />
+              <div className="flex-1 text-left">
+                <p className="font-semibold text-gray-800">家族の管理</p>
+                <p className="text-xs text-gray-600">
+                  家族メンバーの管理や招待コードの確認
+                </p>
+              </div>
+            </button>
+          ) : (
+            // ロック中：グレーアウト（3回タップで解除）
+            <>
+              <div
+                onClick={handleFamilyManagementTap}
+                className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 bg-gray-50 p-4 opacity-60 cursor-pointer"
+              >
+                <Users size={32} className="text-gray-400" />
+                <div className="flex-1 text-left">
+                  <p className="font-semibold text-gray-600">家族の管理</p>
+                  <p className="text-xs text-gray-500">
+                    家族メンバーの管理や招待コードの確認
+                  </p>
+                </div>
+              </div>
 
-          {/* 近日リリース予定バッジ */}
-          <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md">
-            近日リリース予定
-          </div>
+              {/* 近日リリース予定バッジ */}
+              <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md">
+                近日リリース予定
+              </div>
+            </>
+          )}
         </div>
 
-        {/* 説明文（控えめに小さく） */}
-        <p className="mt-2 text-[10px] text-gray-400 text-center">
-          家族でスタンプを共有できる機能を準備中です。リリースまでもうしばらくお待ちください。
-        </p>
+        {/* 説明文（ロック中のみ表示） */}
+        {!isFamilyFeatureUnlocked && (
+          <p className="mt-2 text-[10px] text-gray-400 text-center">
+            家族でスタンプを共有できる機能を準備中です。リリースまでもうしばらくお待ちください。
+          </p>
+        )}
       </section>
 
       {/* 子供の画面切替セクション（代理管理メンバーがいる場合のみ表示） */}
@@ -378,35 +461,63 @@ export default function SettingsPage() {
           <h3 className="mb-3 text-sm font-medium text-gray-700">子供の画面</h3>
 
           <div className="relative">
-            <div className="space-y-3 opacity-60">
-              {proxyChildren.map((child) => (
-                <div
-                  key={child.id}
-                  className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 bg-gray-50 p-4 cursor-not-allowed"
-                >
-                  <Baby size={32} className="text-gray-400" />
-                  <div className="flex-1 text-left">
-                    <p className="font-semibold text-gray-600">
-                      子供の画面：{child.real_name || child.display_name || "登録なし"}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      スタンプ {child.stamp_count}個
-                    </p>
-                  </div>
+            {isFamilyFeatureUnlocked ? (
+              // ロック解除済み：クリック可能
+              <div className="space-y-3">
+                {proxyChildren.map((child) => (
+                  <button
+                    key={child.id}
+                    onClick={() => handleSwitchToChild(child.id)}
+                    className="flex w-full items-center gap-4 rounded-lg border-2 border-primary bg-white p-4 transition-colors hover:bg-primary/5"
+                  >
+                    <Baby size={32} className="text-primary" />
+                    <div className="flex-1 text-left">
+                      <p className="font-semibold text-gray-800">
+                        子供の画面：{child.real_name || child.display_name || "登録なし"}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        スタンプ {child.stamp_count}個
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              // ロック中：グレーアウト
+              <>
+                <div className="space-y-3 opacity-60">
+                  {proxyChildren.map((child) => (
+                    <div
+                      key={child.id}
+                      className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 bg-gray-50 p-4 cursor-not-allowed"
+                    >
+                      <Baby size={32} className="text-gray-400" />
+                      <div className="flex-1 text-left">
+                        <p className="font-semibold text-gray-600">
+                          子供の画面：{child.real_name || child.display_name || "登録なし"}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          スタンプ {child.stamp_count}個
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            {/* 近日リリース予定バッジ */}
-            <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md">
-              近日リリース予定
-            </div>
+                {/* 近日リリース予定バッジ */}
+                <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md">
+                  近日リリース予定
+                </div>
+              </>
+            )}
           </div>
 
-          {/* 説明文（控えめに小さく） */}
-          <p className="mt-2 text-[10px] text-gray-400 text-center">
-            お子様専用の画面（キッズモード）機能を準備中です。
-          </p>
+          {/* 説明文（ロック中のみ表示） */}
+          {!isFamilyFeatureUnlocked && (
+            <p className="mt-2 text-[10px] text-gray-400 text-center">
+              お子様専用の画面（キッズモード）機能を準備中です。
+            </p>
+          )}
         </section>
       )}
     </div>
