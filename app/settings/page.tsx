@@ -176,14 +176,8 @@ export default function SettingsPage() {
     }
   };
 
-  // 家族の管理ボタン3回タップ検出ハンドラー
+  // 家族の管理ボタン3回タップ検出ハンドラー（ロック中のみ使用）
   const handleFamilyManagementTap = () => {
-    // 解除済みの場合は通常のページ遷移
-    if (isFamilyFeatureUnlocked) {
-      router.push('/family-management');
-      return;
-    }
-
     // タップカウントをインクリメント
     const newCount = tapCount + 1;
     setTapCount(newCount);
@@ -407,51 +401,98 @@ export default function SettingsPage() {
       <section className="mt-8">
         <h3 className="mb-3 text-sm font-medium text-gray-700">家族管理</h3>
 
-        <div className="relative">
-          {isFamilyFeatureUnlocked ? (
-            // ロック解除済み：通常のクリック可能ボタン
+        {isFamilyFeatureUnlocked ? (
+          // ロック解除済み：家族参加状況に応じて表示を分岐
+          (familyRole && familyId) ? (
+            // 家族参加済みの場合
             <button
-              onClick={handleFamilyManagementTap}
+              onClick={() => router.push('/family/manage')}
               onDoubleClick={handleFamilyManagementLongPress}
-              className="flex w-full items-center gap-4 rounded-lg border-2 border-primary bg-white p-4 transition-colors hover:bg-primary/5"
+              className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 p-4 transition-all hover:border-primary hover:bg-primary/5"
             >
               <Users size={32} className="text-primary" />
               <div className="flex-1 text-left">
-                <p className="font-semibold text-gray-800">家族の管理</p>
+                <p className="font-semibold text-gray-800">
+                  {familyRole === 'parent' && '家族の管理'}
+                  {familyRole === 'child' && '家族情報'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {familyRole === 'parent' && '家族メンバーの管理や招待コードの確認'}
+                  {familyRole === 'child' && '家族情報を確認'}
+                </p>
+              </div>
+              <span className="text-gray-400">→</span>
+            </button>
+          ) : (
+            // 家族未参加の場合：説明文 + 2つの選択肢を表示
+            <div className="space-y-4">
+              {/* 説明文：現在は個人利用中であることを明示 */}
+              <div className="rounded-lg bg-gray-50 p-4 border border-gray-200">
+                <p className="text-sm text-gray-700 mb-2">
+                  <span className="font-semibold">現在、個人でご利用中です。</span>
+                </p>
                 <p className="text-xs text-gray-600">
+                  家族でスタンプを共有したい場合は、以下から設定できます。
+                </p>
+              </div>
+
+              {/* 親として家族を作成 */}
+              <button
+                onClick={() => router.push('/family/create')}
+                className="flex w-full items-center gap-4 rounded-lg border-2 border-primary/30 bg-primary/5 p-4 transition-all hover:border-primary hover:bg-primary/10"
+              >
+                <Users size={32} className="text-primary" />
+                <div className="flex-1 text-left">
+                  <p className="font-semibold text-gray-800">家族グループを作成</p>
+                  <p className="text-xs text-gray-500">
+                    親として家族を作成し、お子様を追加
+                  </p>
+                </div>
+                <span className="text-gray-400">→</span>
+              </button>
+
+              {/* 子として家族に参加 */}
+              <button
+                onClick={() => router.push('/family/join')}
+                className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 p-4 transition-all hover:border-primary hover:bg-primary/5"
+              >
+                <Baby size={32} className="text-purple-600" />
+                <div className="flex-1 text-left">
+                  <p className="font-semibold text-gray-800">家族に参加</p>
+                  <p className="text-xs text-gray-500">
+                    招待コードで既存の家族グループに参加
+                  </p>
+                </div>
+                <span className="text-gray-400">→</span>
+              </button>
+            </div>
+          )
+        ) : (
+          // ロック中：グレーアウト（3回タップで解除）
+          <div className="relative">
+            <div
+              onClick={handleFamilyManagementTap}
+              className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 bg-gray-50 p-4 opacity-60 cursor-pointer"
+            >
+              <Users size={32} className="text-gray-400" />
+              <div className="flex-1 text-left">
+                <p className="font-semibold text-gray-600">家族の管理</p>
+                <p className="text-xs text-gray-500">
                   家族メンバーの管理や招待コードの確認
                 </p>
               </div>
-            </button>
-          ) : (
-            // ロック中：グレーアウト（3回タップで解除）
-            <>
-              <div
-                onClick={handleFamilyManagementTap}
-                className="flex w-full items-center gap-4 rounded-lg border-2 border-gray-200 bg-gray-50 p-4 opacity-60 cursor-pointer"
-              >
-                <Users size={32} className="text-gray-400" />
-                <div className="flex-1 text-left">
-                  <p className="font-semibold text-gray-600">家族の管理</p>
-                  <p className="text-xs text-gray-500">
-                    家族メンバーの管理や招待コードの確認
-                  </p>
-                </div>
-              </div>
+            </div>
 
-              {/* 近日リリース予定バッジ */}
-              <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md">
-                近日リリース予定
-              </div>
-            </>
-          )}
-        </div>
+            {/* 近日リリース予定バッジ */}
+            <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md">
+              近日リリース予定
+            </div>
 
-        {/* 説明文（ロック中のみ表示） */}
-        {!isFamilyFeatureUnlocked && (
-          <p className="mt-2 text-[10px] text-gray-400 text-center">
-            家族でスタンプを共有できる機能を準備中です。リリースまでもうしばらくお待ちください。
-          </p>
+            {/* 説明文 */}
+            <p className="mt-2 text-[10px] text-gray-400 text-center">
+              家族でスタンプを共有できる機能を準備中です。リリースまでもうしばらくお待ちください。
+            </p>
+          </div>
         )}
       </section>
 
