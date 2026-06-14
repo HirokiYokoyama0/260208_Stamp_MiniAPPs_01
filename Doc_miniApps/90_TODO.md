@@ -199,6 +199,48 @@
 
 ---
 
+## コードベース整理・後日実施タスク 🧹（2026-06-12 棚卸し起票）
+
+> 2026-06-12のコード俯瞰＋Supabase読み取り専用調査で判明した「不要・重複・乖離」の是正タスク。
+> **運用中・大量ユーザーのため、各項目は対象を絞り・テストの上で個別実施**する。
+> 背景と根拠: [124_コードベース棚卸し_実態調査レポート.md](124_コードベース棚卸し_実態調査レポート.md) / [60_イベントログ設計.md](60_イベントログ設計.md)
+
+### A. ログ計装の追加（不具合調査の盲点解消）🔴
+- [ ] カメラQR着地・転送判定のログ（[app/page.tsx](../app/page.tsx)）：`auto_stamp_entry`（raw_query, action/type/amount/location, redirected, is_in_client）
+- [ ] カメラQRクライアント処理のログ（[app/auto-stamp/page.tsx](../app/auto-stamp/page.tsx)）：`auto_stamp_result`（outcome, liff_version, error_message）
+- [ ] `logEvent` でクエリ文字列（`window.location.search`）を記録できるようにする
+- [ ] スタッフ手動付与をevent_logsにも記録（[api/stamps/manual](../app/api/stamps/manual/route.ts)）：`staff_manual_stamp`
+- [ ] アプリ内スキャンのクライアント失敗ログ（[scan/page.tsx](../app/scan/page.tsx) catch）
+
+### B. 未使用コード・ルートの削除 🟡（参照0件を確認済み）
+- [ ] `components/dental/ToothDiagram.tsx`（v1・未使用、両ページは_v2使用）
+- [ ] `components/shared/KidsSlotButton.tsx`（スタンプタブ統合済み・未使用）
+- [ ] `GET /api/rewards`（未使用。`milestone_rewards` を直接SELECT）
+- [ ] `DELETE /api/families/members`（bare・`[memberId]`版に置換済み）
+- [ ] `lib/analytics.ts` デッドコード（`logPageView`/`logRewardExchange`/`logError`/`logChildScreenView`/`startSession`）→ 実装 or 削除を判断
+- [ ] ルート直下の調査スクリプト（`check_notes_location.ts`/`check_schema.ts`/`check_stamp_method.ts`/`investigate-kakiya-duplicate.ts`）を `scripts/` へ移動 or 削除
+
+### C. 重複ロジックの集約 🔴（要設計・要テスト）
+- [ ] スタンプ付与3系統（`/api/stamps`・`/api/stamps/scan`・`/api/stamps/auto`）を内部関数へ集約
+- [ ] アプリ内スキャンUIの二重化（会員証画面QRScanner と /scanページ）の整理
+
+### D. 実害のある機能ギャップ 🟡
+- [ ] 特典交換のイベントログが未実装（`logRewardExchange` 未配線）→ 交換が行動ログに残らない
+- [ ] セッション計測（`session_start`/`session_end`）が機能していない → 実装 or 撤去
+
+### E. DB・スキーマ整理（Supabaseは要承認・運用中）🟢
+- [ ] ケア記録テーブルの命名重複：実体 `patient_dental_records`（7行）/ 空の `dental_records` の整理
+- [ ] 空・未活用テーブル（`family_members`/`survey_questions`/`survey_responses`/`message_delivery_logs`/`event_logs_daily_summary`）の要否判断
+- [ ] repoマイグレーションとデプロイ済みDBの不一致を是正（欠番016/026/030、重複009/021、`026B_…`がrepo未収録）→ 実DBからスキーマをrepoへ反映
+
+### F. ドキュメント（一部は2026-06-12に対応済み）
+- [x] `60_イベントログ設計.md` 実装準拠に全面改訂（2026-06-12）
+- [x] `05_Database_Schema.md` に実DB実測（§0）追記・リンク切れ修正（2026-06-12）
+- [x] `02_ファイル構成.md` に未使用ファイル注記（2026-06-12）
+- [ ] `100_…QRスキャンイベントログ分離.md` の参照リンク切れ修正（97/98が不在）
+
+---
+
 ## 未実装機能・今後の開発予定 📋
 
 ### Phase 1: バックエンド基盤構築 🔧
@@ -545,3 +587,4 @@ LINE_CHANNEL_SECRET=your-line-channel-secret
 | 2026-02-14 | 開発環境整備：ngrok導入（v3.36.1）、lucide-react最新版アップデート（0.564.0）、TypeScript型定義エラー解消 |
 | 2026-02-14 | 次回メモ機能実装：データベース拡張（3カラム追加、自動更新トリガー）、API実装（GET/PUT）、患者側表示、管理画面作成、タイムゾーン問題修正 |
 | 2026-02-14 | 予約ボタンクリック数トラッキング機能実装：データベース拡張（reservation_button_clicks カラム追加、increment_reservation_clicks() 関数）、API実装（POST /api/users/[userId]/reservation-click）、フロントエンド実装（非同期fetch、エラー握りつぶし） |
+| 2026-06-12 | **コードベース棚卸し・後日実施タスク（A〜F）を起票**：ログ計装追加・未使用コード削除・重複ロジック集約・DB整理等。背景は [124_コードベース棚卸し_実態調査レポート.md](124_コードベース棚卸し_実態調査レポート.md)。ドキュメント整合（60/05/02）は同日対応済み |
