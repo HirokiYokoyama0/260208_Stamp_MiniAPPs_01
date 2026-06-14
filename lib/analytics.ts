@@ -74,6 +74,7 @@ export const logEvent = async (params: LogEventParams): Promise<LogEventResponse
       viewport_size: `${window.innerWidth}x${window.innerHeight}`,
       referrer: document.referrer || null,
       page_path: window.location.pathname,
+      page_query: window.location.search || null, // クエリ文字列（?action=... 等）を記録（不具合調査用）
       timestamp: new Date().toISOString(),
     } : metadata;
 
@@ -253,6 +254,104 @@ export const logStampScanFail = (params: {
       http_status: params.httpStatus,
       request_type: params.requestType,
       request_stamps: params.requestStamps,
+    },
+  });
+};
+
+// =====================================
+// カメラQR（auto-stamp）計装（不具合調査用・2026-06）
+// =====================================
+
+/**
+ * カメラQRの着地・転送判定ログ（app/page.tsx）
+ * 「スタンプQRで開かれたか／別QR・パラメータ無しか」「/auto-stampへ転送されたか」を記録。
+ * 注意: 付与フローを遅延させないため呼び出し側は fire-and-forget（await しない）で使用すること。
+ */
+export const logAutoStampEntry = (params: {
+  userId?: string;
+  rawQuery: string;
+  action: string | null;
+  type: string | null;
+  amount: string | null;
+  location: string | null;
+  redirected: boolean;
+  isInClient?: boolean;
+}) => {
+  return logEvent({
+    eventName: 'auto_stamp_entry',
+    userId: params.userId,
+    metadata: {
+      raw_query: params.rawQuery,
+      action: params.action,
+      type: params.type,
+      amount: params.amount,
+      location: params.location,
+      redirected: params.redirected,
+      is_in_client: params.isInClient,
+    },
+  });
+};
+
+/**
+ * カメラQRのクライアント処理の結末ログ（app/auto-stamp/page.tsx）
+ * liff.init失敗・バリデーション落ち・API成否・例外を outcome で区別して記録。
+ * 注意: fire-and-forget（await しない）で使用すること。
+ */
+export const logAutoStampResult = (params: {
+  userId?: string;
+  outcome:
+    | 'not_in_client'
+    | 'not_logged_in'
+    | 'invalid_params'
+    | 'invalid_amount'
+    | 'api_success'
+    | 'api_fail'
+    | 'exception';
+  rawQuery: string;
+  parsedAmount?: number;
+  isInClient?: boolean;
+  liffVersion?: string;
+  httpStatus?: number;
+  errorMessage?: string;
+}) => {
+  return logEvent({
+    eventName: 'auto_stamp_result',
+    userId: params.userId,
+    metadata: {
+      outcome: params.outcome,
+      raw_query: params.rawQuery,
+      parsed_amount: params.parsedAmount,
+      is_in_client: params.isInClient,
+      liff_version: params.liffVersion,
+      http_status: params.httpStatus,
+      error_message: params.errorMessage,
+    },
+  });
+};
+
+/**
+ * スタッフ手動付与ログ（app/api/stamps/manual・サーバー側）
+ * 「スタッフ操作で付与/調整した」事実を event_logs に残す。
+ * 注: 現状LIFF側にスタッフ個別識別子は無い（共有PINのみ）。staff_id は将来対応。
+ * 注: 本ログは amount / visit_count のロジックには一切干渉しない（記録のみ）。
+ */
+export const logStaffManualStamp = (params: {
+  userId: string;
+  before: number;
+  after: number;
+  changeAmount: number;
+  deletedHistoryCount?: number;
+}) => {
+  return logEvent({
+    eventName: 'staff_manual_stamp',
+    userId: params.userId,
+    metadata: {
+      before: params.before,
+      after: params.after,
+      change_amount: params.changeAmount,
+      deleted_history_count: params.deletedHistoryCount,
+      staff_initiated: true,
+      staff_id: null, // LIFF側に識別子なし（共有PIN運用）。将来スタッフ選択/ログイン導入時に設定
     },
   });
 };

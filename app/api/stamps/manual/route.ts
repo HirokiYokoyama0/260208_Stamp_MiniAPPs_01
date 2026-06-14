@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { AddStampResponse } from "@/types/stamp";
 import { invalidateMilestoneRewards } from "@/lib/milestones";
+import { logStaffManualStamp } from "@/lib/analytics";
 
 interface ManualStampRequest {
   userId: string; // LINEユーザーID
@@ -177,6 +178,19 @@ export async function POST(
     }
 
     console.log(`✅ profiles.stamp_count を ${currentStampCount} → ${newStampCount} に更新しました`);
+
+    // スタッフ手動付与をイベントログに記録（記録のみ・amount/visit_countには非干渉）
+    // 注: ログ失敗してもスタンプ変更は成立しているため握り潰す
+    try {
+      await logStaffManualStamp({
+        userId,
+        before: currentStampCount,
+        after: newStampCount,
+        changeAmount,
+      });
+    } catch (logError) {
+      console.error("⚠️ staff_manual_stamp ログ記録失敗（スタンプ変更は成功）:", logError);
+    }
 
     // マイルストーン特典の無効化処理（スタンプ減少時のみ）
     console.log(`🔍 [manual/route] changeAmount確認: ${changeAmount}, 条件: ${changeAmount < 0}`);

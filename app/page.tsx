@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useViewMode } from '@/contexts/ViewModeContext';
+import { logAutoStampEntry } from '@/lib/analytics';
 import AdultHome from '@/components/(adult)/AdultHome';
 import KidsHome from '@/components/(kids)/KidsHome';
 
@@ -16,13 +17,29 @@ function HomeContent() {
     const action = searchParams.get('action');
     const type = searchParams.get('type');
     const amount = searchParams.get('amount');
+    const location = searchParams.get('location');
+    const rawQuery = typeof window !== 'undefined' ? window.location.search : '';
+    const willRedirect =
+      action === 'stamp' && (type === 'qr' || type === 'purchase') && !!amount;
 
-    if (action === 'stamp' && (type === 'qr' || type === 'purchase') && amount) {
-      console.log('[HomePage] QRスタンプアクション検出 → /auto-stamp にリダイレクト');
-      const location = searchParams.get('location');
-      const params = new URLSearchParams({
+    // パラメータ付きで開かれた時だけ着地ログを記録（通常のホーム閲覧では撒かない）
+    // fire-and-forget（await しない）。userIdはここでは取得しない（liff.init二重化を避けるため）
+    if (rawQuery) {
+      void logAutoStampEntry({
+        rawQuery,
         action,
         type,
+        amount,
+        location,
+        redirected: willRedirect,
+      });
+    }
+
+    if (willRedirect && amount) {
+      console.log('[HomePage] QRスタンプアクション検出 → /auto-stamp にリダイレクト');
+      const params = new URLSearchParams({
+        action: action!,
+        type: type!,
         amount,
         ...(location && { location }),
       });

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useLiff } from '@/hooks/useLiff';
 import { QrCode, Camera, CheckCircle2, XCircle, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { logStampScanStart, logStampScanApiRequest } from '@/lib/analytics';
+import { logStampScanStart, logStampScanApiRequest, logStampScanFail } from '@/lib/analytics';
 
 /**
  * QRコードスキャンページ
@@ -116,14 +116,17 @@ export default function QRScanPage() {
       }
     } catch (err) {
       console.error('QRスキャンエラー:', err);
+      const msg = err instanceof Error ? err.message : String(err);
       if (err instanceof Error) {
         if (err.message.includes('CANCEL')) {
-          // ユーザーがキャンセルした場合
+          // ユーザーがキャンセルした場合（失敗扱いにしない）
           setError('');
         } else {
+          void logStampScanFail({ userId: profile?.userId, error: msg, errorType: 'scan_client_error' });
           setError('QRコードの読み取りに失敗しました');
         }
       } else {
+        void logStampScanFail({ userId: profile?.userId, error: msg, errorType: 'scan_client_error' });
         setError('QRコードの読み取りに失敗しました');
       }
     } finally {
@@ -143,17 +146,20 @@ export default function QRScanPage() {
         payload = JSON.parse(qrValue);
         console.log('📱 [Scan Page] パース後のペイロード:', payload);
       } catch {
+        void logStampScanFail({ userId: profile?.userId, error: 'QR JSON parse error', errorType: 'parse_error' });
         setError('無効なQRコードです。つくばホワイト歯科のQRコードをスキャンしてください。');
         return;
       }
 
       // ペイロードの検証
       if (!payload.type || !payload.stamps) {
+        void logStampScanFail({ userId: profile?.userId, error: 'invalid QR format', errorType: 'invalid_qr' });
         setError('無効なQRコードフォーマットです');
         return;
       }
 
       if (payload.type !== 'premium' && payload.type !== 'regular' && payload.type !== 'purchase') {
+        void logStampScanFail({ userId: profile?.userId, error: `unsupported type: ${payload.type}`, errorType: 'invalid_qr' });
         setError('サポートされていないQRコードタイプです');
         return;
       }
@@ -216,6 +222,7 @@ export default function QRScanPage() {
       }
     } catch (err) {
       console.error('QR処理エラー:', err);
+      void logStampScanFail({ userId: profile?.userId, error: err instanceof Error ? err.message : String(err), errorType: 'network_error' });
       setError('通信エラーが発生しました');
     }
   };

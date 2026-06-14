@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import liff from "@line/liff";
+import { logAutoStampResult } from "@/lib/analytics";
 
 type Status = "loading" | "success" | "error" | "already_received";
 
@@ -16,11 +17,22 @@ function AutoStampContent() {
 
   useEffect(() => {
     const processAutoStamp = async () => {
+      // 計装用（fire-and-forget。付与フローには一切影響しない）
+      const rawQuery = typeof window !== "undefined" ? window.location.search : "";
+      const safeLiffVersion = () => {
+        try {
+          return liff.getVersion();
+        } catch {
+          return undefined;
+        }
+      };
+
       try {
         console.log(`[AutoStamp v2.0] ページ読み込み開始`);
 
         // LIFF初期化
         if (!liff.isInClient()) {
+          void logAutoStampResult({ outcome: "not_in_client", rawQuery, isInClient: false });
           setStatus("error");
           setMessage("このページはLINEアプリ内でのみ利用できます");
           return;
@@ -29,6 +41,7 @@ function AutoStampContent() {
         await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID! });
 
         if (!liff.isLoggedIn()) {
+          void logAutoStampResult({ outcome: "not_logged_in", rawQuery, isInClient: true, liffVersion: safeLiffVersion() });
           liff.login();
           return;
         }
@@ -41,6 +54,7 @@ function AutoStampContent() {
 
         // バリデーション
         if (action !== "stamp" || (type !== "qr" && type !== "purchase")) {
+          void logAutoStampResult({ outcome: "invalid_params", rawQuery, isInClient: true, liffVersion: safeLiffVersion() });
           setStatus("error");
           setMessage("無効なQRコードです");
           return;
@@ -51,6 +65,7 @@ function AutoStampContent() {
 
         if (![5, 10, 15].includes(stampAmount)) {
           console.error(`[AutoStamp] バリデーションエラー: ${stampAmount}は許可されていません`);
+          void logAutoStampResult({ outcome: "invalid_amount", rawQuery, parsedAmount: stampAmount, isInClient: true, liffVersion: safeLiffVersion() });
           setStatus("error");
           setMessage(`無効なスタンプ数です (受け取った値: ${amount}, パース後: ${stampAmount})`);
           return;
@@ -79,22 +94,26 @@ function AutoStampContent() {
         const result = await response.json();
 
         if (result.success) {
+          void logAutoStampResult({ outcome: "api_success", rawQuery, parsedAmount: stampAmount, userId, isInClient: true, liffVersion: safeLiffVersion(), httpStatus: response.status });
           setStatus("success");
           setMessage(result.message);
           setStampCount(result.stampCount);
           setAddedAmount(result.addedAmount);
           console.log(`✅ スタンプ自動付与成功: +${result.addedAmount}個`);
         } else if (result.alreadyReceived) {
+          void logAutoStampResult({ outcome: "api_fail", rawQuery, parsedAmount: stampAmount, userId, isInClient: true, liffVersion: safeLiffVersion(), httpStatus: response.status, errorMessage: "alreadyReceived" });
           setStatus("already_received");
           setMessage(result.message);
           console.log("⚠️ 本日は既に受け取り済み");
         } else {
+          void logAutoStampResult({ outcome: "api_fail", rawQuery, parsedAmount: stampAmount, userId, isInClient: true, liffVersion: safeLiffVersion(), httpStatus: response.status, errorMessage: result.message });
           setStatus("error");
           setMessage(result.message || "スタンプの付与に失敗しました");
           console.error("❌ スタンプ自動付与失敗:", result.message);
         }
 
       } catch (error) {
+        void logAutoStampResult({ outcome: "exception", rawQuery, isInClient: liff.isInClient?.(), liffVersion: safeLiffVersion(), errorMessage: error instanceof Error ? error.message : String(error) });
         console.error("❌ AutoStamp処理エラー:", error);
         setStatus("error");
         setMessage("エラーが発生しました");
