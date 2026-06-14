@@ -276,6 +276,10 @@ export const logAutoStampEntry = (params: {
   location: string | null;
   redirected: boolean;
   isInClient?: boolean;
+  /** LIFF第1段階の liff.state（デコード済み文字列）。無ければ null */
+  liffState?: string | null;
+  /** action/type/amount を liff.state から補完したか（第1段階の着地） */
+  fromLiffState?: boolean;
 }) => {
   return logEvent({
     eventName: 'auto_stamp_entry',
@@ -288,6 +292,8 @@ export const logAutoStampEntry = (params: {
       location: params.location,
       redirected: params.redirected,
       is_in_client: params.isInClient,
+      liff_state: params.liffState,
+      from_liff_state: params.fromLiffState,
     },
   });
 };
