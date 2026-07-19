@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase, getSupabaseAdmin } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { calculateStampDisplay } from "@/lib/stamps";
 import {
   ExchangeRewardRequest,
@@ -217,12 +217,13 @@ export async function POST(
     let exchange: RewardExchange | null = null;
 
     // 8-1. 既存 available をアトミックに pending へ更新（新規レコードを増やさない）
-    //   ⚠️ reward_exchanges は anon の UPDATE が RLS で不可（SELECT/INSERTポリシーのみ）。
-    //     そのため service role（RLSバイパス・サーバー側APIのみ）で UPDATE する。
-    //     これが無いと 0行更新→INSERTになり update-not-insert が機能しない（D-fix後は交換が壊れる）。
+    //   ⚠️【前提】reward_exchanges の anon UPDATE を許可する RLSポリシーが必要（DB側で追加）。
+    //     LIFFは設計上 ANON_KEY のみ（service role は管理ダッシュボード専用・doc 107）。
+    //     ポリシー未追加の間はこの UPDATE は 0行 となり INSERT にフォールバック（fail-open）＝
+    //     新規重複が出るが、ダッシュボードの complete 時 兄弟cancel が救済（暫定）。
+    //     RLSポリシー追加後にこの update-not-insert が実際に機能する。
     try {
-      const admin = getSupabaseAdmin();
-      const { data: updatedRows, error: updateError } = await admin
+      const { data: updatedRows, error: updateError } = await supabase
         .from("reward_exchanges")
         .update({
           status: "pending",
