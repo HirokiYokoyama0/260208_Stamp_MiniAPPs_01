@@ -206,36 +206,95 @@ export async function POST(
     // 7. 有効期限計算
     const validUntil = calculateValidUntil(reward.validity_months);
 
-    // 8. 交換履歴を記録（pending）
-    const insertData = {
-      user_id: userId,
-      reward_id: rewardId,
-      stamp_count_used: milestone || fullStamps,
-      milestone_reached: milestone || fullStamps,
-      status: "pending" as const,
-      valid_until: validUntil,
-      is_first_time: isFirstTime,
-      is_milestone_based: true,
-      notes: `特典交換: ${reward.name} (${milestone || fullStamps}スタンプ到達)`,
-    };
-    console.log('💾 交換履歴を記録中:', insertData);
+    // 8. 交換履歴を記録
+    // 【あるべき姿】既存の available を pending に更新（update-not-insert）。
+    //   available が無い場合のみ新規INSERT（後方互換）。
+    //   fail-open: 予期せぬエラー時も INSERT にフォールバックし、患者の交換は必ず成立させる。
+    //   詳細: Doc_miniApps/128, 127 §3-4
+    const targetMilestone = milestone || fullStamps;
+    const nowIso = new Date().toISOString();
+    const exchangeNotes = `特典交換: ${reward.name} (${targetMilestone}スタンプ到達)`;
+    let exchange: RewardExchange | null = null;
 
-    const { data: exchange, error: exchangeError } = await supabase
-      .from("reward_exchanges")
-      .insert(insertData)
-      .select()
-      .single();
+    // 8-1. 既存 available をアトミックに pending へ更新（新規レコードを増やさない）
+    try {
+      const { data: updatedRows, error: updateError } = await supabase
+        .from("reward_exchanges")
+        .update({
+          status: "pending",
+          valid_until: validUntil,
+          is_first_time: isFirstTime,
+          notes: exchangeNotes,
+          updated_at: nowIso,
+        })
+        .eq("user_id", userId)
+        .eq("reward_id", rewardId)
+        .eq("milestone_reached", targetMilestone)
+        .eq("is_milestone_based", true)
+        .eq("status", "available") // ← available のみ対象（同時実行でも二重にならない）
+        .select();
 
-    if (exchangeError) {
-      console.error("❌ 交換履歴登録エラー:", exchangeError);
-      return NextResponse.json(
-        {
-          success: false,
-          message: "交換履歴の登録に失敗しました",
-          error: exchangeError.message,
-        },
-        { status: 500 }
-      );
+      if (updateError) {
+        console.error("⚠️ available→pending 更新エラー（INSERTにフォールバック）:", updateError);
+      } else if (updatedRows && updatedRows.length > 0) {
+        exchange = updatedRows[0] as RewardExchange;
+        console.log(`✅ 既存availableをpendingに更新（重複作成なし）: ${updatedRows.length}件`);
+      }
+    } catch (e) {
+      console.error("⚠️ available更新で例外（INSERTにフォールバック）:", e);
+    }
+
+    // 8-2. available が無かった場合のみ、従来どおり新規INSERT（後方互換・fail-open）
+    if (!exchange) {
+      const insertData = {
+        user_id: userId,
+        reward_id: rewardId,
+        stamp_count_used: targetMilestone,
+        milestone_reached: targetMilestone,
+        status: "pending" as const,
+        valid_until: validUntil,
+        is_first_time: isFirstTime,
+        is_milestone_based: true,
+        notes: exchangeNotes,
+      };
+      console.log('💾 交換履歴を記録中(INSERT):', insertData);
+
+      const { data: inserted, error: exchangeError } = await supabase
+        .from("reward_exchanges")
+        .insert(insertData)
+        .select()
+        .single();
+
+      if (exchangeError) {
+        // 将来 UNIQUE(user_id,reward_id,milestone_reached) 適用後の重複INSERT(23505)は
+        // 「既に交換済み」として正常扱いにし、患者の交換を失敗させない
+        if (exchangeError.code === "23505") {
+          console.warn("ℹ️ UNIQUE違反(23505): 既存レコードを返す（交換済み扱い）");
+          const { data: existing } = await supabase
+            .from("reward_exchanges")
+            .select("*")
+            .eq("user_id", userId)
+            .eq("reward_id", rewardId)
+            .eq("milestone_reached", targetMilestone)
+            .eq("is_milestone_based", true)
+            .limit(1);
+          exchange = existing && existing.length > 0 ? (existing[0] as RewardExchange) : null;
+        }
+
+        if (!exchange) {
+          console.error("❌ 交換履歴登録エラー:", exchangeError);
+          return NextResponse.json(
+            {
+              success: false,
+              message: "交換履歴の登録に失敗しました",
+              error: exchangeError.message,
+            },
+            { status: 500 }
+          );
+        }
+      } else {
+        exchange = inserted as RewardExchange;
+      }
     }
 
     console.log(

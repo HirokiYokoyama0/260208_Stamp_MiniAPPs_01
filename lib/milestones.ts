@@ -196,6 +196,26 @@ export async function grantMilestoneReward(
   // 有効期限計算
   const validUntil = calculateValidUntil(reward.validity_months);
 
+  // 冪等ガード（Phase B）: 既に同一 (user, reward, milestone) の「有効な」特典があれば新規作成しない。
+  //   checkMilestones でも除外しているが、同時実行(同時到達/連打)の競合対策として付与側にも二重ガード。
+  //   ※ ON CONFLICT は使わない（対象の一意インデックスは D-fix で初めて作られるため、
+  //     B時点では「存在チェック＋23505キャッチ」で安全化する）。
+  //   ※ 'cancelled'/'expired' は対象外（＝将来の部分ユニークインデックスと同じ有効ステータス条件）。
+  const { data: existingActive } = await supabase
+    .from('reward_exchanges')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('reward_id', reward.id)
+    .eq('milestone_reached', milestone)
+    .eq('is_milestone_based', true)
+    .in('status', ['available', 'pending', 'completed'])
+    .limit(1);
+
+  if (existingActive && existingActive.length > 0) {
+    console.log(`⏭️ [grantMilestoneReward] 既存の有効な特典があるため自動付与スキップ: milestone ${milestone}`);
+    return existingActive[0];
+  }
+
   // 特典付与レコード作成
   const { data: exchange, error: exchangeError } = await supabase
     .from('reward_exchanges')
@@ -215,10 +235,24 @@ export async function grantMilestoneReward(
     .single();
 
   if (exchangeError) {
+    // 将来 D-fix（部分ユニークインデックス）適用後、競合で 23505 が返った場合は
+    // 既存を返して冪等に（付与処理を失敗させない・fail-open）
+    if (exchangeError.code === '23505') {
+      console.warn(`ℹ️ [grantMilestoneReward] UNIQUE違反(23505)。既存レコードを返す: milestone ${milestone}`);
+      const { data: dup } = await supabase
+        .from('reward_exchanges')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('reward_id', reward.id)
+        .eq('milestone_reached', milestone)
+        .eq('is_milestone_based', true)
+        .limit(1);
+      if (dup && dup.length > 0) return dup[0];
+    }
     throw new Error(`Failed to grant reward: ${exchangeError.message}`);
   }
 
-  // マイルストーン履歴に記録
+  // マイルストーン履歴に記録（新規作成時のみ）
   const { error: historyError } = await supabase
     .from('milestone_history')
     .insert({
