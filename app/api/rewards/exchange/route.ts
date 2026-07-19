@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, getSupabaseAdmin } from "@/lib/supabase";
 import { calculateStampDisplay } from "@/lib/stamps";
 import {
   ExchangeRewardRequest,
@@ -217,8 +217,12 @@ export async function POST(
     let exchange: RewardExchange | null = null;
 
     // 8-1. 既存 available をアトミックに pending へ更新（新規レコードを増やさない）
+    //   ⚠️ reward_exchanges は anon の UPDATE が RLS で不可（SELECT/INSERTポリシーのみ）。
+    //     そのため service role（RLSバイパス・サーバー側APIのみ）で UPDATE する。
+    //     これが無いと 0行更新→INSERTになり update-not-insert が機能しない（D-fix後は交換が壊れる）。
     try {
-      const { data: updatedRows, error: updateError } = await supabase
+      const admin = getSupabaseAdmin();
+      const { data: updatedRows, error: updateError } = await admin
         .from("reward_exchanges")
         .update({
           status: "pending",
@@ -241,6 +245,7 @@ export async function POST(
         console.log(`✅ 既存availableをpendingに更新（重複作成なし）: ${updatedRows.length}件`);
       }
     } catch (e) {
+      // service roleキー未設定等でも患者の交換は止めない（INSERTにフォールバック）
       console.error("⚠️ available更新で例外（INSERTにフォールバック）:", e);
     }
 
