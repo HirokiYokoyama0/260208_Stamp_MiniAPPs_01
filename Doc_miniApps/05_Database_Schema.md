@@ -406,7 +406,17 @@
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → `profiles(id)` ON DELETE CASCADE
 - ⚠️ `reward_id` の外部キー制約は削除済み（新旧両テーブルを参照するため）
-- UNIQUE: `(user_id, reward_id, milestone_reached)` - 同一マイルストーンの重複防止
+- ⚠️ **重複防止の一意制約は「未適用」かつ「フルUNIQUEは誤り」**（2026-07-19 訂正）
+  - 旧記載の `UNIQUE (user_id, reward_id, milestone_reached)`（フル）は**本番DBに未適用**（重複472組が実在）。
+  - さらに**フルUNIQUEは論理削除運用と両立しない**（`cancelled + completed` が同一タプルに残ると制約作成が失敗）。
+  - 正しい設計＝**部分ユニークインデックス**（再発防止 D-fix で適用予定）：
+    ```sql
+    CREATE UNIQUE INDEX CONCURRENTLY uq_reward_active
+      ON reward_exchanges (user_id, reward_id, milestone_reached)
+      WHERE status IN ('available','pending','completed');
+    ```
+    → `cancelled/expired` は対象外＝論理削除と両立し「有効な特典は1マイルストーン1行」を保証。
+  - 詳細: [127](127_マイルストーン特典重複_ミニアプリ開発者へ確認.md) §3-4-1 / [128](128_マイルストーン特典_交換フロー_あるべき姿.md)。
 
 **RLS (Row Level Security):**
 - ✅ 有効
@@ -414,11 +424,15 @@
 
 **ステータス管理:**
 
+> ⚠️ 現行は `available` / `expired` を含む5種。正本は [128](128_マイルストーン特典_交換フロー_あるべき姿.md) §1・[114](114_availableステータス導入_実装完了レポート.md) §2.1。本来の遷移は `available → pending → completed`。
+
 | ステータス | 意味 | 運用 |
 |-----------|------|------|
-| `pending` | 受付で確認中 | 特典を提供する前 |
+| `available` | 到達済み・未交換（現行で追加）| 「この特典と交換する」表示 |
+| `pending` | 受付で確認中（交換申請済み）| 特典を提供する前 |
 | `completed` | 提供完了 | 受付で実際に特典を渡した後 |
-| `cancelled` | キャンセル | 誤交換などの取り消し |
+| `cancelled` | キャンセル/無効化 | 誤交換・スタンプ減少・重複クリーンアップ（論理削除）|
+| `expired` | 有効期限切れ（現行で追加）| pending が期限超過 |
 | `expired` | 期限切れ | 有効期限切れ（新仕様のみ） |
 
 **新旧の区別:**

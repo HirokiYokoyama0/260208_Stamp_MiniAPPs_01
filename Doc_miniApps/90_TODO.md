@@ -233,6 +233,12 @@
 - [ ] 空・未活用テーブル（`family_members`/`survey_questions`/`survey_responses`/`message_delivery_logs`/`event_logs_daily_summary`）の要否判断
 - [ ] repoマイグレーションとデプロイ済みDBの不一致を是正（欠番016/026/030、重複009/021、`026B_…`がrepo未収録）→ 実DBからスキーマをrepoへ反映
 
+### G. 初回ユーザーのカメラQR直読み → `/api/stamps/auto` 500 の対処 🟡（2026-07-15起票）
+- 事象：ホーム未経由の初回ユーザーがカメラで来院QRを読むと、`profiles`未作成のまま`/api/stamps/auto`が`.single()`→`PGRST116(0行)`→**500で付与されない**（代表ケース：森田2976）。詳細 [124](124_コードベース棚卸し_実態調査レポート.md) §7。
+- [ ] **推奨A**：`/api/stamps/auto` の profile未存在(`PGRST116`)時のみ最小プロフィールをUPSERTして付与継続（happy path非干渉）。任意で`/auto-stamp`から`displayName/pictureUrl`を渡す。RLSでanon INSERT不可なら当該UPSERTのみservice role。
+- [ ] （代替D）付与せず「アプリを一度開いてから」案内を返す（ゼロリスクだが付与されない）。
+- 制約：**基本フロー（profile存在時）は絶対に変更しない**。amount/visit_count/RLS非干渉。段階リリース＋ロールバック前提。
+
 ### F. ドキュメント（一部は2026-06-12に対応済み）
 - [x] `60_イベントログ設計.md` 実装準拠に全面改訂（2026-06-12）
 - [x] `05_Database_Schema.md` に実DB実測（§0）追記・リンク切れ修正（2026-06-12）
