@@ -417,6 +417,7 @@
     ```
     → `cancelled/expired` は対象外＝論理削除と両立し「有効な特典は1マイルストーン1行」を保証。
   - 詳細: [127](127_マイルストーン特典重複_ミニアプリ開発者へ確認.md) §3-4-1 / [128](128_マイルストーン特典_交換フロー_あるべき姿.md)。
+- **UPDATEポリシー（2026-07-19 適用）**：`reward_exchanges_anon_claim_available`（`supabase/033_...sql`）。anon に **available→pending の遷移のみ**許可（LIFFのupdate-not-insert用）。**🔴 DROP厳禁**（消すと anon UPDATE不可→exchangeがINSERTに戻り重複再発）。complete/cancel/expired 等は対象外（service role or 別ポリシー）。
 
 **RLS (Row Level Security):**
 - ✅ 有効
