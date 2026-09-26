@@ -20,6 +20,8 @@ export interface LogEventParams {
   metadata?: Record<string, any>;
   /** ユーザーID（省略時は自動検出） */
   userId?: string;
+  /** true の場合、ページ遷移/アンロードで中断されない keepalive fetch で送信（app_open等・§129 ④条件b） */
+  keepalive?: boolean;
 }
 
 /**
@@ -29,6 +31,61 @@ interface LogEventResponse {
   success: boolean;
   error?: string;
 }
+
+// =====================================
+// セッション相関キー / keepalive送信（§129）
+// =====================================
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
+const SESSION_ID_KEY = 'th_session_id';
+
+/**
+ * webviewセッション毎に一意な session_id を取得（無ければ生成）。
+ * sessionStorage に保持するため、同一webview内のフルリロード（liff.state展開等）をまたいで不変。
+ * 別webviewで開き直した場合は新しいIDになる（＝新しい起動）。サーバー/利用不可時は null。
+ * 形式: `sess_<乱数>`（管理ダッシュボード合意・§129 C-2）
+ */
+export const getSessionId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    let sid = window.sessionStorage.getItem(SESSION_ID_KEY);
+    if (!sid) {
+      sid = `sess_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+      window.sessionStorage.setItem(SESSION_ID_KEY, sid);
+    }
+    return sid;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * ページ遷移/アンロードで中断されない keepalive fetch で event_logs に1件INSERT。
+ * liff.state 展開等のフルナビゲーション中でも送信を落とさないために使う（§129 ④条件b）。
+ * supabase-js の insert は keepalive を付けられないため REST を直接叩く（同一の anon INSERT）。
+ * 成功可否を返す（失敗時は呼び出し側で通常経路にフォールバック）。
+ */
+const sendEventKeepalive = async (row: Record<string, unknown>): Promise<boolean> => {
+  try {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return false;
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/event_logs`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(row),
+      keepalive: true,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+};
 
 // =====================================
 // メイン関数: イベントログ送信
@@ -57,7 +114,7 @@ interface LogEventResponse {
  */
 export const logEvent = async (params: LogEventParams): Promise<LogEventResponse> => {
   try {
-    const { eventName, source, metadata, userId } = params;
+    const { eventName, source, metadata, userId, keepalive } = params;
 
     // URLパラメータから流入元を自動検出
     let detectedSource = source;
@@ -75,21 +132,33 @@ export const logEvent = async (params: LogEventParams): Promise<LogEventResponse
       referrer: document.referrer || null,
       page_path: window.location.pathname,
       page_query: window.location.search || null, // クエリ文字列（?action=... 等）を記録（不具合調査用）
+      session_id: getSessionId(), // 🆕 セッション相関キー（§129 C）。metadataの明示値より優先
       timestamp: new Date().toISOString(),
     } : metadata;
 
     // ユーザーIDの取得
     // 注意: userIdはlogEvent呼び出し時に明示的に渡すことを推奨
     // 各コンポーネントでuseLiff()のprofileからuserIdを取得して渡してください
-    let targetUserId = userId;
+    const targetUserId = userId;
 
-    // Supabaseにログを送信
-    const { error } = await supabase.from('event_logs').insert({
+    const row = {
       user_id: targetUserId || null,
       event_name: eventName,
       source: detectedSource,
       metadata: enrichedMetadata,
-    });
+    };
+
+    // 🆕 keepalive指定時は遷移/アンロードで中断されない直接fetchで送信（§129 ④条件b）
+    // 成功すれば即return。失敗時は下の通常経路（supabase-js）にフォールバック。
+    if (keepalive && typeof window !== 'undefined') {
+      const ok = await sendEventKeepalive(row);
+      if (ok) {
+        return { success: true };
+      }
+    }
+
+    // Supabaseにログを送信
+    const { error } = await supabase.from('event_logs').insert(row);
 
     if (error) {
       // エラーの詳細情報を記録（サーバーサイドではVercelログに記録される）
@@ -136,6 +205,7 @@ export const logAppOpen = (params?: { userId?: string; metadata?: Record<string,
     eventName: 'app_open',
     userId: params?.userId,
     metadata: params?.metadata,
+    keepalive: true, // 🆕 §129 ④: 遷移中でも落とさない（once-per-sessionの1回を確実に届ける）
   });
 };
 
@@ -208,6 +278,7 @@ export const logStampScanSuccess = (params: {
   requestAmount?: number;        // APIリクエストで受け取ったamount/stamps
   requestLocation?: string;      // APIリクエストで受け取ったlocation（カメラQRのみ）
   requestType?: string;          // APIリクエストで受け取ったtype
+  sessionId?: string;            // 🆕 §129 C-2: サーバー発ログにクライアントの相関キーを渡す
 }) => {
   // スキャン方法に応じてイベント名を分ける
   const eventName = params.scanMethod === 'in_app'
@@ -229,6 +300,7 @@ export const logStampScanSuccess = (params: {
       request_amount: params.requestAmount,
       request_location: params.requestLocation,
       request_type: params.requestType,
+      session_id: params.sessionId, // 🆕 §129 C-2（サーバー発。クライアント発はlogEventで自動付与）
     },
   });
 };
@@ -244,6 +316,7 @@ export const logStampScanFail = (params: {
   httpStatus?: number;
   requestType?: string;
   requestStamps?: number;
+  sessionId?: string;            // 🆕 §129 C-2: サーバー発ログにクライアントの相関キーを渡す
 }) => {
   return logEvent({
     eventName: 'stamp_scan_fail',
@@ -254,6 +327,7 @@ export const logStampScanFail = (params: {
       http_status: params.httpStatus,
       request_type: params.requestType,
       request_stamps: params.requestStamps,
+      session_id: params.sessionId, // 🆕 §129 C-2（サーバー発。クライアント発はlogEventで自動付与）
     },
   });
 };
@@ -295,6 +369,7 @@ export const logAutoStampEntry = (params: {
       liff_state: params.liffState,
       from_liff_state: params.fromLiffState,
     },
+    keepalive: true, // 🆕 §129 ①: 第1段階(着地)はliff.state展開で中断され得るため確実に届ける
   });
 };
 
@@ -332,6 +407,7 @@ export const logAutoStampResult = (params: {
       http_status: params.httpStatus,
       error_message: params.errorMessage,
     },
+    keepalive: true, // 🆕 §129: 結末ログも遷移で落とさない
   });
 };
 

@@ -48,9 +48,12 @@ function HomeContent() {
       }
     }
 
-    // パラメータ付きで開かれた時だけ着地ログを記録（通常のホーム閲覧では撒かない）
+    // スタンプQR関連の着地だけログを記録（§129 ②: settings/rewards/login/friendship等のノイズは撒かない）
+    // 判定は liff.state からの補完値 effAction/effType を使用（第1段階＝stamp着地も維持できる）
     // fire-and-forget（await しない）。userIdはここでは取得しない（liff.init二重化を避けるため）
-    if (rawQuery) {
+    const isStampEntry =
+      effAction === 'stamp' && (effType === 'qr' || effType === 'purchase');
+    if (rawQuery && isStampEntry) {
       void logAutoStampEntry({
         rawQuery,
         action: effAction,

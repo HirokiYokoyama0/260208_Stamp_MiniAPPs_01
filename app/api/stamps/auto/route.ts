@@ -20,7 +20,7 @@ const supabase = createClient(
  */
 export async function POST(req: Request) {
   try {
-    const { userId, amount, type, location } = await req.json();
+    const { userId, amount, type, location, sessionId } = await req.json();
 
     // バリデーション
     if (!userId) {
@@ -83,6 +83,7 @@ export async function POST(req: Request) {
             httpStatus: 409,
             requestType: stampType,
             requestStamps: amount,
+            sessionId, // 🆕 §129 C-2
           });
         } catch (logError) {
           console.error('❌ [API/Auto] イベントログ記録エラー:', logError);
@@ -129,6 +130,7 @@ export async function POST(req: Request) {
             httpStatus: 429,
             requestType: stampType,
             requestStamps: amount,
+            sessionId, // 🆕 §129 C-2
           });
         } catch (logError) {
           console.error('❌ [API/Auto] イベントログ記録エラー:', logError);
@@ -277,6 +279,7 @@ export async function POST(req: Request) {
         requestAmount: amount,
         requestLocation: location,
         requestType: type,
+        sessionId, // 🆕 §129 C-2: 着地→結末→付与を1本で追う相関キー
       });
 
       if (!logResult.success) {

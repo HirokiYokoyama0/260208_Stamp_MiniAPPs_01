@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import liff from "@line/liff";
-import { logAutoStampResult } from "@/lib/analytics";
+import { logAutoStampResult, getSessionId } from "@/lib/analytics";
 
 type Status = "loading" | "success" | "error" | "already_received";
 
@@ -88,6 +88,7 @@ function AutoStampContent() {
             amount: stampAmount,
             type: type || "qr",  // URLパラメータのtypeをそのまま使用
             location: location || null,
+            sessionId: getSessionId(),  // 🆕 §129 C-2: 着地→結末→付与を1本で追う相関キー
           }),
         });
 

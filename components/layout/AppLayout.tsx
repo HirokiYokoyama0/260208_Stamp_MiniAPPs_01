@@ -215,11 +215,19 @@ export function AppLayout({ children }: AppLayoutProps) {
     }
   }, [isLoading, isLoggedIn, isLiffChecked]);
 
-  // アプリ起動ログ
+  // アプリ起動ログ（§129 ④: LIFFセッションで1回だけ。多重発火＝指標水増しを防ぐ）
+  // - sessionStorage は同一webviewのフルリロード（liff.state展開等）をまたいで保持されるため、
+  //   camera-QRの多段ロードを1回に集約できる。別webviewで開き直せば新IDで正しく1回計上。
+  // - 送信は logAppOpen 内部で keepalive fetch（遷移中でも落とさない）。
   useEffect(() => {
-    if (isLoggedIn && profile) {
-      logAppOpen({ userId: profile.userId });
+    if (!isLoggedIn || !profile) return;
+    try {
+      if (sessionStorage.getItem("app_open_sent")) return;
+      sessionStorage.setItem("app_open_sent", "1");
+    } catch {
+      // sessionStorage不可時はガードせず従来どおり送信（取りこぼしより計上を優先）
     }
+    logAppOpen({ userId: profile.userId });
   }, [isLoggedIn, profile]);
 
   // アンケートモーダル表示チェック
